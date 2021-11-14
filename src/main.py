@@ -6,7 +6,10 @@ the predictor.
 @ Alexandre Cortez Santos (???)
 """
 
+from dependencies import *
 from utils import *
+from tests import *
+
 
 # -- globals
 seasons = [
@@ -20,8 +23,27 @@ stats = [
 
 # ----------
 
-# generate required datasets
-outputFullStats(stats, seasons)
+# generate and save required datasets:
+# tracking ...
+if not len(listdir(processedDataDir)):
+    outputFullStats(stats, seasons)
+
+# ... and injuries
+exportData(
+    removeAcquired(
+        importData(path.join(rawDataDir, 'og_injuries.csv'))
+    ),
+    path.join(processedDataDir, 'injuries.csv')
+)
+
+# import pre-pre-processed player tracking data
+drives = importData(path.join(processedDataDir, 'drives.csv'))
+fga = importData(path.join(processedDataDir, 'fga.csv'))
+rebounds = importData(path.join(processedDataDir, 'rebounds.csv'))
+speed_distance = importData(path.join(processedDataDir, 'speed&distance.csv'))
+injuries = importData(path.join(processedDataDir, 'injuries.csv'))
+
+print(injuries)
 
 
 print('Done')

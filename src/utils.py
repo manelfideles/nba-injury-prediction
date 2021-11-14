@@ -11,10 +11,7 @@ the 'src' directory.
 @ Alexandre Cortez Santos (???)
 """
 
-import pandas as pd
-import matplotlib as plt
-import numpy as np
-from os import path
+from dependencies import *
 
 # -- globals
 # -- these can be accessed from
@@ -26,14 +23,14 @@ processedDataDir = path.realpath('../assets/processed')
 # ----------
 
 
-def importRawData(path):
+def importData(path):
     """
     Wrapper function for pd.read_csv().
     """
     return pd.read_csv(path)
 
 
-def exportProcessedData(df, path):
+def exportData(df, path):
     """
     Wrapper function for pd.to_csv().
     """
@@ -49,7 +46,7 @@ def importTrackingData(folder, season):
     format, i.e drives1314 is the dataset relative to
     drives per game in the '13-'14 season.
     """
-    return importRawData(
+    return importData(
         path.join(
             rawDataDir,
             folder,
@@ -59,6 +56,10 @@ def importTrackingData(folder, season):
 
 
 def concatSeasons(stat, seasons):
+    """
+    Concatenates stat data relative to all
+    seasons.
+    """
     frames = []
     for season in seasons:
         seasondf = importTrackingData(stat, season)
@@ -81,7 +82,22 @@ def outputFullStats(stats, seasons):
     """
     for stat in stats:
         df = concatSeasons(stat, seasons)
-        exportProcessedData(df, path.join(
+        exportData(df, path.join(
             processedDataDir, f'{stat}.csv'
         ))
     return 0
+
+
+def removeAcquired(df):
+    """
+    Removes players that returned from injury.
+    This function drops the lines where the 'Relinquished'
+    column in the 'injuries' dataset is equal to
+    NaN, i.e a player was activated from IL.
+    After this, the 'Acquired' column no longer has meaningful data,
+    so we can also drop it.
+    """
+    df = df.drop(
+        np.where(pd.isnull(df['Relinquished']))[0]
+    )
+    return df.drop(columns=['Acquired'])
