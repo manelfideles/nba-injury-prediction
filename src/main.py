@@ -22,4 +22,6 @@ stats = [
 
 # generate required datasets
 outputFullStats(stats, seasons)
+
+
 print('Done')

@@ -62,6 +62,12 @@ def concatSeasons(stat, seasons):
     frames = []
     for season in seasons:
         seasondf = importTrackingData(stat, season)
+
+        # remove a lot of unnecessary empty
+        # columns
+        if stat == 'fga':
+            seasondf = seasondf.loc[:, ~seasondf.columns.str.endswith('RANK')]
+
         seasondf['Season'] = season
         frames.append(seasondf)
     return pd.concat(frames)
