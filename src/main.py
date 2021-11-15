@@ -28,9 +28,10 @@ stats = [
 if not len(listdir(processedDataDir)):
     outputFullStats(stats, seasons)
 
+
 # ... and injuries
 exportData(
-    removeAcquired(
+    trimInjuries(
         importData(path.join(rawDataDir, 'og_injuries.csv'))
     ),
     path.join(processedDataDir, 'injuries.csv')
@@ -43,7 +44,12 @@ rebounds = importData(path.join(processedDataDir, 'rebounds.csv'))
 speed_distance = importData(path.join(processedDataDir, 'speed&distance.csv'))
 injuries = importData(path.join(processedDataDir, 'injuries.csv'))
 
-print(injuries)
-
+# Teams vs # of Injuries
+plotHistogram(
+    seriesToFrame(
+        injuries['Team'].value_counts(),
+        ['Team', '# of Injuries']
+    )
+)
 
 print('Done')

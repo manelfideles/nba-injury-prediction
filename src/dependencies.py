@@ -7,6 +7,6 @@ throughout the program are defined here.
 """
 
 import pandas as pd
-import matplotlib as plt
+import matplotlib.pyplot as plt
 import numpy as np
 from os import path, listdir

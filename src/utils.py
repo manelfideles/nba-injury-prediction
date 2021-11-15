@@ -18,8 +18,9 @@ from dependencies import *
 # -- the main file, so there's no need to
 # -- define them there.
 
-rawDataDir = path.realpath('../assets/raw')
-processedDataDir = path.realpath('../assets/processed')
+rawDataDir = path.realpath('./assets/raw')
+processedDataDir = path.realpath('./assets/processed')
+print(processedDataDir)
 # ----------
 
 
@@ -88,16 +89,31 @@ def outputFullStats(stats, seasons):
     return 0
 
 
-def removeAcquired(df):
+def trimInjuries(df):
     """
     Removes players that returned from injury.
-    This function drops the lines where the 'Relinquished'
-    column in the 'injuries' dataset is equal to
-    NaN, i.e a player was activated from IL.
-    After this, the 'Acquired' column no longer has meaningful data,
-    so we can also drop it.
     """
+    # Drops the lines where the 'Relinquished'
+    # column in the 'injuries' dataset is equal to
+    # NaN, i.e a player was activated from IL.
     df = df.drop(
         np.where(pd.isnull(df['Relinquished']))[0]
     )
-    return df.drop(columns=['Acquired'])
+
+    # 'Acquired' column is full of NaN's, so we drop it
+    df = df.drop(columns=['Acquired'])
+    return df
+
+    # todo - Remove data until 2013-04-17 (end of '12-'13 season)
+    pass
+
+
+def seriesToFrame(series, columns):
+    """
+    Transforms a Pandas Series object
+    into a Dataframe object with the
+    given column name(s).
+    """
+    frame = pd.DataFrame(series).reset_index()
+    frame.columns = columns
+    return frame

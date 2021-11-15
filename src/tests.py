@@ -7,10 +7,11 @@ executed on the data.
 @ Alexandre Cortez Santos (???)
 """
 
+from matplotlib.pyplot import legend
 from dependencies import *
 
 
-def plotHistogram(df):
-    teams = df['Team'].nunique()
-    n_injuries = df['Team'].count()
-    print(teams, n_injuries)
+def plotHistogram(data):
+    _, ax = plt.subplots()
+    ax.bar(data.iloc[:, 0], data.iloc[:, 1])
+    plt.show()
