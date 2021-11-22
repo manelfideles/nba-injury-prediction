@@ -11,7 +11,9 @@ from matplotlib.pyplot import legend
 from dependencies import *
 
 
-def plotHistogram(data):
+def plotHistogram(data, labels, limit=10):
     _, ax = plt.subplots()
-    ax.bar(data.iloc[:, 0], data.iloc[:, 1])
+    ax.bar(data.iloc[:limit+1, 0], data.iloc[:limit+1, 1])
+    ax.set_ylabel(labels[0])
+    ax.set_xlabel(labels[1])
     plt.show()

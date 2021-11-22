@@ -20,7 +20,7 @@ from dependencies import *
 
 rawDataDir = path.realpath('./assets/raw')
 processedDataDir = path.realpath('./assets/processed')
-print(processedDataDir)
+
 # ----------
 
 
@@ -82,14 +82,31 @@ def outputFullStats(stats, seasons):
     directory.
     """
     for stat in stats:
-        df = concatSeasons(stat, seasons)
-        exportData(df, path.join(
-            processedDataDir, f'{stat}.csv'
-        ))
-    return 0
+        if stat != 'og_injuries':
+            df = concatSeasons(stat, seasons)
+            exportData(df, path.join(
+                processedDataDir, f'{stat}.csv'
+            ))
+        # -- export injuries dataset
+        else:
+            exportData(
+                preprocessInjuries(
+                    importData(path.join(rawDataDir, f'{stat}.csv'))
+                ),
+                path.join(processedDataDir, 'injuries.csv')
+            )
+    return 1
 
 
-def trimInjuries(df):
+def splitDate(df):
+    """
+    change Date column to yy-mm-dd
+    """
+    df['Date'] = df['Date'].str.split('-')
+    return df
+
+
+def preprocessInjuries(df):
     """
     Removes players that returned from injury.
     """
@@ -102,9 +119,17 @@ def trimInjuries(df):
 
     # 'Acquired' column is full of NaN's, so we drop it
     df = df.drop(columns=['Acquired'])
+
+    # change 'Relinquished' column to 'Player' for readability
+    df = df.rename(columns={'Relinquished': 'Player'})
+
+    # change Date column to yy-mm-dd
+    df = splitDate(df)
     return df
 
     # todo - Remove data until 2013-04-17 (end of '12-'13 season)
+    # pq só temos info acerca das outras stats
+    # a partir do fim dessa época
     pass
 
 

@@ -18,24 +18,18 @@ seasons = [
 ]
 
 stats = [
-    'drives', 'rebounds', 'speed&distance', 'fga'
+    'drives', 'rebounds', 'speed&distance', 'fga',
+    'og_injuries'
 ]
 
+debug = True
 # ----------
 
 # generate and save required datasets:
-# tracking ...
+# tracking and injuries
 if not len(listdir(processedDataDir)):
-    outputFullStats(stats, seasons)
-
-
-# ... and injuries
-exportData(
-    trimInjuries(
-        importData(path.join(rawDataDir, 'og_injuries.csv'))
-    ),
-    path.join(processedDataDir, 'injuries.csv')
-)
+    if outputFullStats(stats, seasons):
+        print('-- Generated datasets! --')
 
 # import pre-pre-processed player tracking data
 drives = importData(path.join(processedDataDir, 'drives.csv'))
@@ -43,13 +37,25 @@ fga = importData(path.join(processedDataDir, 'fga.csv'))
 rebounds = importData(path.join(processedDataDir, 'rebounds.csv'))
 speed_distance = importData(path.join(processedDataDir, 'speed&distance.csv'))
 injuries = importData(path.join(processedDataDir, 'injuries.csv'))
+print('-- Imported datasets! --')
 
-# Teams vs # of Injuries
-plotHistogram(
-    seriesToFrame(
+# Exploratory Data Analysis
+if debug:
+    # 1 -- Teams vs # of Injuries
+    # !! - Limited to the top 5 most injured teams
+    injuries_per_team = seriesToFrame(
         injuries['Team'].value_counts(),
         ['Team', '# of Injuries']
     )
-)
+    plotHistogram(injuries_per_team, ['# of events', 'Teams'], limit=5)
+
+    # 2 -- Players vs # of Injuries
+    # !! - Limited to the top 5 most injured players
+    injuries_per_player = seriesToFrame(
+        injuries['Player'].value_counts(),
+        ['Player', '# of Injuries']
+    )
+    plotHistogram(injuries_per_player, ['# of events', 'Players'], limit=5)
+
 
 print('Done')
