@@ -84,15 +84,17 @@ def outputFullStats(stats, seasons):
     for stat in stats:
         if stat != 'og_injuries':
             df = concatSeasons(stat, seasons)
-            exportData(df, path.join(
-                processedDataDir, f'{stat}.csv'
-            ))
+            exportData(
+                df,
+                path.join(processedDataDir, f'{stat}.csv')
+            )
         # -- export injuries dataset
         else:
+            injuriesDf = preprocessInjuries(
+                importData(path.join(rawDataDir, f'{stat}.csv'))
+            )
             exportData(
-                preprocessInjuries(
-                    importData(path.join(rawDataDir, f'{stat}.csv'))
-                ),
+                injuriesDf,
                 path.join(processedDataDir, 'injuries.csv')
             )
     return 1
@@ -100,9 +102,15 @@ def outputFullStats(stats, seasons):
 
 def splitDate(df):
     """
-    change Date column to yy-mm-dd
+    Change Date column format to
+    separate columns with yy, mm, dd.
     """
-    df['Date'] = df['Date'].str.split('-')
+    datesDf = pd.DataFrame(
+        df['Date'].str.split('-', 2).to_list(),
+        columns=['Year', 'Month', 'Day']
+    )
+    df = pd.concat([datesDf, df], axis=1)
+    print(df)
     return df
 
 
@@ -115,7 +123,7 @@ def preprocessInjuries(df):
     # NaN, i.e a player was activated from IL.
     df = df.drop(
         np.where(pd.isnull(df['Relinquished']))[0]
-    )
+    ).reset_index(drop=True)
 
     # 'Acquired' column is full of NaN's, so we drop it
     df = df.drop(columns=['Acquired'])
@@ -124,7 +132,8 @@ def preprocessInjuries(df):
     df = df.rename(columns={'Relinquished': 'Player'})
 
     # change Date column to yy-mm-dd
-    df = splitDate(df)
+    # and eliminate 'Date' column
+    df = splitDate(df).drop(['Date'], axis=1)
     return df
 
     # todo - Remove data until 2013-04-17 (end of '12-'13 season)

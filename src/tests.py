@@ -13,7 +13,7 @@ from dependencies import *
 
 def plotHistogram(data, labels, limit=10):
     _, ax = plt.subplots()
-    ax.bar(data.iloc[:limit+1, 0], data.iloc[:limit+1, 1])
+    ax.barh(data.iloc[:limit+1, 0], data.iloc[:limit+1, 1])
     ax.set_ylabel(labels[0])
     ax.set_xlabel(labels[1])
     plt.show()

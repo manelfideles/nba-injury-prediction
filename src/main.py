@@ -22,12 +22,12 @@ stats = [
     'og_injuries'
 ]
 
-debug = True
+debug = False
 # ----------
 
 # generate and save required datasets:
 # tracking and injuries
-if not len(listdir(processedDataDir)):
+if len(listdir(processedDataDir)) != len(stats):
     if outputFullStats(stats, seasons):
         print('-- Generated datasets! --')
 
@@ -42,20 +42,28 @@ print('-- Imported datasets! --')
 # Exploratory Data Analysis
 if debug:
     # 1 -- Teams vs # of Injuries
-    # !! - Limited to the top 5 most injured teams
+    # !! - Limited to the top 'limit' most injured teams
     injuries_per_team = seriesToFrame(
         injuries['Team'].value_counts(),
         ['Team', '# of Injuries']
     )
-    plotHistogram(injuries_per_team, ['# of events', 'Teams'], limit=5)
+    plotHistogram(
+        injuries_per_team,
+        ['Teams', '# of events'],
+        limit=10
+    )
 
     # 2 -- Players vs # of Injuries
-    # !! - Limited to the top 5 most injured players
+    # !! - Limited to the top 'limit' most injured players
     injuries_per_player = seriesToFrame(
         injuries['Player'].value_counts(),
         ['Player', '# of Injuries']
     )
-    plotHistogram(injuries_per_player, ['# of events', 'Players'], limit=5)
+    plotHistogram(
+        injuries_per_player,
+        ['Players', '# of events'],
+        limit=10
+    )
 
 
 print('Done')
