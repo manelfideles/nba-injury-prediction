@@ -41,29 +41,41 @@ print('-- Imported datasets! --')
 
 # Exploratory Data Analysis
 if debug:
-    # 1 -- Teams vs # of Injuries
+    # 1 -- Teams with the most injuries
     # !! - Limited to the top 'limit' most injured teams
-    injuries_per_team = seriesToFrame(
+    topInjuriesTeams = seriesToFrame(
         injuries['Team'].value_counts(),
         ['Team', '# of Injuries']
     )
     plotHistogram(
-        injuries_per_team,
+        topInjuriesTeams,
         ['Teams', '# of events'],
         limit=10
     )
 
-    # 2 -- Players vs # of Injuries
+    # 2 -- Players with the most injuries
     # !! - Limited to the top 'limit' most injured players
-    injuries_per_player = seriesToFrame(
+    topInjuriesPlayers = seriesToFrame(
         injuries['Player'].value_counts(),
         ['Player', '# of Injuries']
     )
     plotHistogram(
-        injuries_per_player,
-        ['Players', '# of events'],
+        topInjuriesPlayers,
+        topInjuriesPlayers.columns,
         limit=10
     )
+
+    # 3 -- Injuries per player
+
+# 4 -- Injuries per year
+topInjuriesYear = seriesToFrame(
+    injuries['Year'].value_counts(),
+    ['Year', '# of Injuries']
+).sort_values('Year').reset_index(drop=True)
+plotLineGraph(
+    topInjuriesYear,
+    topInjuriesYear.columns,
+)
 
 
 print('Done')

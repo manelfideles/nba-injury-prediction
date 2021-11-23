@@ -110,7 +110,6 @@ def splitDate(df):
         columns=['Year', 'Month', 'Day']
     )
     df = pd.concat([datesDf, df], axis=1)
-    print(df)
     return df
 
 
@@ -139,6 +138,14 @@ def preprocessInjuries(df):
     # todo - Remove data until 2013-04-17 (end of '12-'13 season)
     # pq só temos info acerca das outras stats
     # a partir do fim dessa época
+    pass
+
+
+def injuriesPerPlayer(df):
+    # contar a qtd de vezes
+    # que um jogador aparece na lista
+    # em determinado ano
+    df['Player'].count()
     pass
 
 
