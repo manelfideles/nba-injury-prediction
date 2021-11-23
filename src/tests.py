@@ -9,6 +9,7 @@ executed on the data.
 
 # from matplotlib.pyplot import legend
 from dependencies import *
+plt.rcParams['font.size'] = '7'
 
 
 def plotHistogram(data, axlabels, limit=10, orientation='horz'):
@@ -26,13 +27,9 @@ def plotHistogram(data, axlabels, limit=10, orientation='horz'):
 
 def plotLineGraph(data, axlabels):
     _, ax = plt.subplots()
-    ax.plot(data[axlabels[0]], data[axlabels[1]], 'o-')
-    """
-    for xy in zip(data[axlabels[0]], data[axlabels[1]]):
-        ax.annotate('%s, %s' % xy, xy=xy, textcoords='data')
-    """
-    for i, txt in enumerate(data[axlabels[1]]):
+    ax.plot(data.iloc[:, 0], data.iloc[:, 1], 'o-')
+    for i, txt in enumerate(data.iloc[:, 1]):
         ax.annotate(txt, (data.iloc[i, 0], data.iloc[i, 1]))
-    ax.set_ylabel(axlabels[0])
-    ax.set_xlabel(axlabels[1])
+    ax.set_xlabel(axlabels[0])
+    ax.set_ylabel(axlabels[1])
     plt.show()

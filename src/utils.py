@@ -116,6 +116,7 @@ def splitDate(df):
 def preprocessInjuries(df):
     """
     Removes players that returned from injury.
+    Splits date into yy-mm-dd.
     """
     # Drops the lines where the 'Relinquished'
     # column in the 'injuries' dataset is equal to
@@ -141,14 +142,6 @@ def preprocessInjuries(df):
     pass
 
 
-def injuriesPerPlayer(df):
-    # contar a qtd de vezes
-    # que um jogador aparece na lista
-    # em determinado ano
-    df['Player'].count()
-    pass
-
-
 def seriesToFrame(series, columns):
     """
     Transforms a Pandas Series object
@@ -158,3 +151,11 @@ def seriesToFrame(series, columns):
     frame = pd.DataFrame(series).reset_index()
     frame.columns = columns
     return frame
+
+
+def findInNotes(notes, keyword):
+    """
+    Finds specific keyword in the 'Notes'
+    column of the injuries dataset.
+    """
+    return notes.str.contains(keyword, regex=True)
