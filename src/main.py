@@ -47,13 +47,13 @@ speed_distance = importData(path.join(processedDataDir, 'speed&distance.csv'))
 injuries = importData(path.join(processedDataDir, 'injuries.csv'))
 print('-- Imported datasets! --')
 
-# Exploratory Data Analysis
 if debug:
+    # Exploratory Data Analysis
     # 1 -- Teams with the most injuries
     # !! - Limited to the top 'limit' most injured teams
     topInjuriesTeams = seriesToFrame(
         injuries['Team'].value_counts(),
-        ['Team', '# of Injuries']
+        ['Team', '# of Events']
     ).sort_values('Team').reset_index(drop=True)
     plotHistogram(
         topInjuriesTeams,
@@ -65,7 +65,7 @@ if debug:
     # !! - Limited to the top 'limit' most injured players
     topInjuriesPlayers = seriesToFrame(
         injuries['Player'].value_counts(),
-        ['Player', '# of Injuries']
+        ['Player', '# of Events']
     )
     plotHistogram(
         topInjuriesPlayers,
@@ -78,7 +78,7 @@ if debug:
     # 4 -- Injuries per year
     topInjuriesYear = seriesToFrame(
         injuries['Year'].value_counts(),
-        ['Year', '# of Injuries']
+        ['Year', '# of Events']
     ).sort_values('Year').reset_index(drop=True)
     plotLineGraph(
         topInjuriesYear,
@@ -88,19 +88,18 @@ if debug:
     # 5 -- Injuries per month
     topInjuriesPerMonth = seriesToFrame(
         injuries['Month'].value_counts(),
-        ['Month', '# of Injuries']
+        ['Month', '# of Events']
     ).sort_values('Month').reset_index(drop=True)
     plotLineGraph(
         topInjuriesPerMonth,
         topInjuriesPerMonth.columns
     )
 
-# Injury types
-if debug:
+    # Injury types
     # 1 -- Injuries per type of injury
     topInjuriesByType = seriesToFrame(
         injuries['Notes'].value_counts(),
-        ['Types', '# of Injuries']
+        ['Types', '# of Events']
     )
     plotHistogram(
         topInjuriesByType,
@@ -111,7 +110,7 @@ if debug:
     # 2 -- # rest entries vs non-rest entries
     restEntries = seriesToFrame(
         findInNotes(injuries['Notes'], 'rest').value_counts(),
-        ['Rest?', '# of events']
+        ['Rest?', '# of Events']
     )
 
     restFilter = np.where((findInNotes(injuries['Notes'], 'rest') == True))[0]
@@ -135,5 +134,30 @@ if debug:
         ['Team', '# of Events']
     ).sort_values('# of Events')
     plotHistogram(restTeams, restTeams.columns, limit=32)
+
+    # 6 -- Resting vs Injuries
+    restPlayers = seriesToFrame(
+        injuries.iloc[restFilter, 4].value_counts(),  # column 4 == 'Player
+        ['Player', '# of Events']
+    ).sort_index()
+
+    restingVsInjuries = restPlayers.merge(
+        topInjuriesPlayers,
+        how='inner',
+        on='Player'
+    ).rename(columns={
+        '# of Events_x': '# of Rests',
+        '# of Events_y': '# of Injuries'
+    })
+
+    mostInjuredPlayer = topInjuriesPlayers.iloc[0, :]['Player']
+    mostRestedPlayer = restPlayers.iloc[0, :]['Player']
+
+    plotScatterGraph(
+        restingVsInjuries,
+        ['# of Injuries', '# of Rests'],
+        'Relationship between injuries and rest (by player)',
+        [topInjuriesPlayers.iloc[0, :]['Player'], restPlayers.iloc[0, :]['Player']]
+    )
 
 print('Done')

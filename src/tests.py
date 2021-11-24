@@ -33,3 +33,40 @@ def plotLineGraph(data, axlabels):
     ax.set_xlabel(axlabels[0])
     ax.set_ylabel(axlabels[1])
     plt.show()
+
+
+# ainda nao faz nada mas há-de ser util
+def annotations(ax, data, ann=[]):
+    """
+    Iterates over 'data' to annotate
+    the contents of 'ann' on the set
+    of axes 'ax'.
+    """
+    for i in range(len(ann)):
+        for j, txt in enumerate(data):
+            ax.annotate(txt, j)
+    pass
+
+
+def plotScatterGraph(data, axlabels, title, annotations=[]):
+    _, ax = plt.subplots()
+    ax.scatter(data[axlabels[0]], data[axlabels[1]])
+
+    # @TODO best fit line
+    """ 
+    print(data)
+    reg = linregress(data[axlabels[0]], data[axlabels[1]])
+    ax.plot(reg.slope * data[axlabels[0]] + reg.intercept, '--k')
+    """
+    # annotates specific data points defined in
+    # the 'annotations' argument
+    if len(annotations):
+        for i in range(len(annotations)):
+            for j, txt in enumerate(data.iloc[:, 0]):
+                if(data.iloc[j, 0] == annotations[i]):
+                    ax.annotate(txt, (data.iloc[j, 2], data.iloc[j, 1]))
+
+    ax.set_xlabel(axlabels[0])
+    ax.set_ylabel(axlabels[1])
+    plt.title(title)
+    plt.show()

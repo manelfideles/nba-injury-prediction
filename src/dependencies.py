@@ -9,4 +9,6 @@ throughout the program are defined here.
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
+from scipy.stats import linregress
 from os import path, listdir
