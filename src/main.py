@@ -41,7 +41,6 @@ debug = False
 # ----------
 
 # generate and save required datasets:
-# tracking and injuries
 if len(listdir(processedDataDir)) != len(stats):
     if outputFullStats(stats, seasons):
         print('-- Generated datasets! --')
@@ -215,5 +214,12 @@ if debug:
     )
 
 # Statistical analysis
+
+##
+"""
+@TODO -- Dar split ao dataset das injuries em epocas para dar match 
+as stats da api da nba
+"""
+##
 
 print('Done')
