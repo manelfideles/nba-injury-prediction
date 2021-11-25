@@ -6,6 +6,7 @@ the predictor.
 @ Alexandre Cortez Santos (???)
 """
 
+from matplotlib.pyplot import title
 from pandas.core import series
 from dependencies import *
 from utils import *
@@ -19,8 +20,8 @@ seasons = [
 ]
 
 stats = [
-    'drives', 'rebounds', 'speed&distance', 'fga',
-    'og_injuries'
+    'drives', 'rebounds', 'speed&distance',
+    'fga', 'og_injuries'
 ]
 
 months = [
@@ -54,11 +55,12 @@ if debug:
     topInjuriesTeams = seriesToFrame(
         injuries['Team'].value_counts(),
         ['Team', '# of Events']
-    ).sort_values('Team').reset_index(drop=True)
+    ).sort_index(ascending=False)
     plotHistogram(
         topInjuriesTeams,
         topInjuriesTeams.columns,
-        limit=10
+        limit=10,
+        title='Injuries by team'
     )
 
     # 2 -- Players with the most injuries
@@ -70,7 +72,8 @@ if debug:
     plotHistogram(
         topInjuriesPlayers,
         topInjuriesPlayers.columns,
-        limit=10
+        limit=10,
+        title='Injuries by player'
     )
 
     # 3 -- @TODO Injuries per player
@@ -83,6 +86,7 @@ if debug:
     plotLineGraph(
         topInjuriesYear,
         topInjuriesYear.columns,
+        title='Injuries over the years'
     )
 
     # 5 -- Injuries per month
@@ -92,7 +96,8 @@ if debug:
     ).sort_values('Month').reset_index(drop=True)
     plotLineGraph(
         topInjuriesPerMonth,
-        topInjuriesPerMonth.columns
+        topInjuriesPerMonth.columns,
+        title='Injuries per month'
     )
 
     # Injury types
@@ -104,7 +109,8 @@ if debug:
     plotHistogram(
         topInjuriesByType,
         topInjuriesByType.columns,
-        limit=40
+        limit=40,
+        title='# of Injuries per type'
     )
 
     # 2 -- # rest entries vs non-rest entries
@@ -119,23 +125,44 @@ if debug:
         injuries.iloc[restFilter, 0].value_counts(),  # column 0 == 'Year'
         ['Year', '# of Events']
     ).sort_values('Year').reset_index(drop=True)
-    # plotLineGraph(restYears, restYears.columns)
+    plotLineGraph(
+        restYears,
+        restYears.columns,
+        title='Resting over the years'
+    )
 
     # 4 -- Resting over months
     restMonths = seriesToFrame(
         injuries.iloc[restFilter, 1].value_counts(),  # column 1 == 'Month'
         ['Month', '# of Events']
     ).sort_values('Month').reset_index(drop=True)
-    plotHistogram(restMonths, restMonths.columns, limit=12, orientation='vert')
+    plotHistogram(
+        restMonths,
+        restMonths.columns,
+        limit=12,
+        orientation='vert',
+        title='Resting over the months'
+    )
 
     # 5 -- Resting by team
     restTeams = seriesToFrame(
         injuries.iloc[restFilter, 3].value_counts(),  # column 3 == 'Team'
         ['Team', '# of Events']
     ).sort_values('# of Events')
-    plotHistogram(restTeams, restTeams.columns, limit=32)
+    plotHistogram(
+        restTeams,
+        restTeams.columns,
+        limit=32,
+        title='Resting by team'
+    )
 
     # 6 -- Resting vs Injuries
+    topInjuriesPlayers = seriesToFrame(
+        injuries['Player'].value_counts(),
+        ['Player', '# of Events']
+    )
+
+    restFilter = np.where((findInNotes(injuries['Notes'], 'rest') == True))[0]
     restPlayers = seriesToFrame(
         injuries.iloc[restFilter, 4].value_counts(),  # column 4 == 'Player
         ['Player', '# of Events']
@@ -158,6 +185,27 @@ if debug:
         ['# of Injuries', '# of Rests'],
         'Relationship between injuries and rest (by player)',
         [topInjuriesPlayers.iloc[0, :]['Player'], restPlayers.iloc[0, :]['Player']]
+    )
+
+    # 7 -- DNP, DTD, out indefinitely, out for season, other
+    status = ['DNP', 'DTD', 'out indefinitely', 'out for season']
+    countSeverities = {
+        s: np.where(
+            findInNotes(
+                injuries['Notes'], s
+            ) == True
+        )[0].size for s in status
+    }
+
+    injurySeverities = pd.DataFrame(countSeverities, index=[0]).T.rename(
+        columns={0: '# of Events'}
+    ).sort_index()
+
+    plotHistogram(
+        injurySeverities,
+        [None, '# of Events'],
+        title='Severity of injuries and their frequencies',
+        dim=1
     )
 
 print('Done')

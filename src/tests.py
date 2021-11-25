@@ -12,26 +12,39 @@ from dependencies import *
 plt.rcParams['font.size'] = '7'
 
 
-def plotHistogram(data, axlabels, limit=10, orientation='horz'):
+def plotHistogram(data, axlabels, title=None, limit=10, orientation='horz', dim=2):
     _, ax = plt.subplots()
-    if orientation == 'vert':
-        ax.bar(data.iloc[:limit+1, 0], data.iloc[:limit+1, 1])
-        ax.set_ylabel(axlabels[1])
-        ax.set_xlabel(axlabels[0])
-    else:
-        ax.barh(data.iloc[:limit+1, 0], data.iloc[:limit+1, 1])
-        ax.set_ylabel(axlabels[0])
-        ax.set_xlabel(axlabels[1])
+    if dim == 2:
+        if orientation == 'vert':
+            ax.bar(data.iloc[:limit+1, 0], data.iloc[:limit+1, 1])
+            ax.set_xlabel(axlabels[0])
+            ax.set_ylabel(axlabels[1])
+        else:
+            ax.barh(data.iloc[:limit+1, 0], data.iloc[:limit+1, 1])
+            ax.set_xlabel(axlabels[1])
+            ax.set_ylabel(axlabels[0])
+    if dim == 1:
+        ax2 = sns.barplot(x=data.index, y=axlabels[1], data=data)
+        # annotation code from https://www.dataquest.io/blog/how-to-plot-a-bar-graph-matplotlib/
+        for p in ax2.patches:
+            ax2.annotate(int(p.get_height()),
+                         (p.get_x() + p.get_width() / 2., p.get_height()),
+                         ha='center', va='center',
+                         xytext=(0, 7), textcoords='offset points')
+    if title:
+        plt.title(title)
     plt.show()
 
 
-def plotLineGraph(data, axlabels):
+def plotLineGraph(data, axlabels, title=None):
     _, ax = plt.subplots()
     ax.plot(data.iloc[:, 0], data.iloc[:, 1], 'o-')
     for i, txt in enumerate(data.iloc[:, 1]):
         ax.annotate(txt, (data.iloc[i, 0], data.iloc[i, 1]))
     ax.set_xlabel(axlabels[0])
     ax.set_ylabel(axlabels[1])
+    if title:
+        plt.title(title)
     plt.show()
 
 
@@ -52,12 +65,9 @@ def plotScatterGraph(data, axlabels, title, annotations=[]):
     _, ax = plt.subplots()
     ax.scatter(data[axlabels[0]], data[axlabels[1]])
 
-    # @TODO best fit line
-    """ 
-    print(data)
-    reg = linregress(data[axlabels[0]], data[axlabels[1]])
-    ax.plot(reg.slope * data[axlabels[0]] + reg.intercept, '--k')
-    """
+    # best fit line
+    sns.regplot(ax=ax, x=axlabels[0], y=axlabels[1], data=data)
+
     # annotates specific data points defined in
     # the 'annotations' argument
     if len(annotations):
@@ -68,5 +78,7 @@ def plotScatterGraph(data, axlabels, title, annotations=[]):
 
     ax.set_xlabel(axlabels[0])
     ax.set_ylabel(axlabels[1])
+    plt.xlim([0, max(data[axlabels[0]])+1])
+    plt.ylim([0, max(data[axlabels[1]])+1])
     plt.title(title)
     plt.show()
