@@ -19,9 +19,15 @@ seasons = [
     '1718', '1819', '1920', '2021'
 ]
 
+# (stat, [columns_to_exclude])
 stats = [
-    'drives', 'rebounds', 'speed&distance',
-    'fga', 'og_injuries'
+    ('drives', ['W', 'L', 'FGM', 'FGA', 'FG%', 'FTM', 'FTA', 'FT%', 'PTS',
+                'PTS%', 'PASS', 'PASS%', 'AST', 'AST%', 'TO', 'TOV%', 'PF', 'PF%']),
+    ('fga', ['W', 'L', 'PTS', 'FTM', 'FTA', 'FT%', 'OREB', 'DREB', 'REB',
+             'AST', 'TOV', 'STL', 'BLK', 'PF', 'FP', 'DD2', 'TD3', '+/-']),
+    ('rebounds', ['W', 'L']),
+    ('speed&distance', ['W', 'L']),
+    'og_injuries'
 ]
 
 months = [
@@ -49,7 +55,7 @@ injuries = importData(path.join(processedDataDir, 'injuries.csv'))
 print('-- Imported datasets! --')
 
 if debug:
-    # Exploratory Data Analysis
+    # Exploratory Data Analysis on the injuries dataset
     # 1 -- Teams with the most injuries
     # !! - Limited to the top 'limit' most injured teams
     topInjuriesTeams = seriesToFrame(
@@ -207,5 +213,7 @@ if debug:
         title='Severity of injuries and their frequencies',
         dim=1
     )
+
+# Statistical analysis
 
 print('Done')

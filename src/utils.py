@@ -83,10 +83,11 @@ def outputFullStats(stats, seasons):
     """
     for stat in stats:
         if stat != 'og_injuries':
-            df = concatSeasons(stat, seasons)
+            df = concatSeasons(stat[0], seasons)
+            df = df.drop(columns=stat[1])
             exportData(
                 df,
-                path.join(processedDataDir, f'{stat}.csv')
+                path.join(processedDataDir, f'{stat[0]}.csv')
             )
         # -- export injuries dataset
         else:
@@ -159,3 +160,37 @@ def findInNotes(notes, keyword):
     column of the injuries dataset.
     """
     return notes.str.contains(keyword, regex=True)
+
+
+# Statistical data
+def normalize(df):
+    return (df - df.mean()) / df.std()
+
+
+def median(df):
+    return df.median()
+
+
+def variance(df):
+    return df.var()
+
+
+def skewness(df):
+    return df.skew()
+
+
+def kurtosis(df):
+    return df.kurtosis()
+
+
+def iqr(df):
+    return df.quantile(.75) - df.quantile(.25)
+
+
+def zscore(df, k):
+    zs = abs((df - df.mean()) / df.std())
+    return df[zs < k], df[zs >= k]
+
+
+def zcr(df):
+    return ((df[:-1] * df[1:]) < 0).sum()
