@@ -20,6 +20,7 @@ from dependencies import *
 
 rawDataDir = path.realpath('./assets/raw')
 processedDataDir = path.realpath('./assets/processed')
+
 teamTricodes = {
     'Hawks': 'ATL', 'Nets': 'BKN', 'Celtics': 'BOS',
     'Hornets': 'CHA', 'Bulls': 'CHI', 'Cavaliers': 'CLE',
@@ -36,18 +37,22 @@ teamTricodes = {
 # ----------
 
 
-def importData(path):
+def importData(filedir, filename):
     """
     Wrapper function for pd.read_csv().
     """
-    return pd.read_csv(path)
+    print(
+        f"-- Imported '{filename}' from the '{path.relpath(filedir)}' directory! --'")
+    return pd.read_csv(path.join(filedir, filename))
 
 
-def exportData(df, path):
+def exportData(df, filedir, filename):
     """
     Wrapper function for pd.to_csv().
     """
-    df.to_csv(path, index=False)
+    print(
+        f'-- Exported {filename} to the {path.relpath(filedir)} directory! --')
+    df.to_csv(path.join(filedir, filename), index=False)
 
 
 def importTrackingData(folder, season):
@@ -62,9 +67,9 @@ def importTrackingData(folder, season):
     return importData(
         path.join(
             rawDataDir,
-            folder,
-            f'{folder}{season}.csv'
-        )
+            folder
+        ),
+        f'{folder}{season}.csv'
     )
 
 
@@ -98,7 +103,8 @@ def outputFullStats(stats, seasons):
         df = df.drop(columns=stat[1])
         exportData(
             df,
-            path.join(processedDataDir, f'{stat[0]}.csv')
+            processedDataDir,
+            f'{stat[0]}.csv'
         )
     return 1
 
@@ -122,7 +128,7 @@ def concatStats(dataframes):
     Returns a single DataFrame with all the relevant NBA stats
     scraped from their website.
     """
-    mergeOn = ['Season', 'Player', 'Team', 'GP', 'MIN']
+    mergeOn = ['Player', 'Team', 'GP', 'MIN', 'Season']
     return reduce(lambda left, right: pd.merge(
         left, right, on=mergeOn, how='inner'
     ), dataframes)

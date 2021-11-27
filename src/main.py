@@ -33,20 +33,19 @@ debug = False
 eda = False
 # ----------
 
-# Generate 'injuries.csv'.
+# Exploratory Data Analysis on the injuries dataset
+# Generate 'injuries.csv' if non-existent
 if not path.isfile(path.join(processedDataDir, 'injuries.csv')):
     exportData(
         preprocessInjuries(
-            importData(path.join(rawDataDir, f'og_injuries.csv'))
+            importData(rawDataDir, f'og_injuries.csv')
         ),
-        path.join(processedDataDir, 'injuries.csv')
+        processedDataDir,
+        'injuries.csv'
     )
 
-# Exploratory Data Analysis on the injuries dataset
-injuriesDataset = None
+injuries = importData(processedDataDir, 'injuries.csv')
 if eda:
-    injuriesDataset = importData(path.join(processedDataDir, 'injuries.csv'))
-
     # 1 -- Teams with the most injuries
     # !! - Limited to the top 'limit' most injured teams
     topInjuriesTeams = seriesToFrame(
@@ -205,33 +204,28 @@ if eda:
         dim=1
     )
 
-statsDataset = None
-if len(listdir(processedDataDir)) <= len(stats):
+# Generate 'stats.csv' if non-existent
+if len(listdir(processedDataDir)) <= len(stats) + 1:
     # generate player tracking datasets
-    if outputFullStats(stats, seasons):
-        print('-- Generated statistics datasets! --')
-
+    outputFullStats(stats, seasons)
     # import somewhat pre-processed player tracking data
-    drives = importData(path.join(processedDataDir, 'drives.csv'))
-    fga = importData(path.join(processedDataDir, 'fga.csv'))
-    rebounds = importData(path.join(processedDataDir, 'rebounds.csv'))
-    speed_distance = importData(path.join(
-        processedDataDir,
-        'speed&distance.csv'))
-    print('-- Imported statistics datasets! --')
+    drives = importData(processedDataDir, 'drives.csv')
+    fga = importData(processedDataDir, 'fga.csv')
+    rebounds = importData(processedDataDir, 'rebounds.csv')
+    speed_distance = importData(processedDataDir, 'speed&distance.csv')
 
     # generate final dataset with all relevant tracking data
     exportData(
         concatStats([drives, fga, rebounds, speed_distance]),
-        path.join(processedDataDir, 'stats.csv'))
-    print("-- Generated 'stats.csv' ! --")
-else:
-    statsDataset = importData(path.join(processedDataDir, 'stats.csv'))
-    print("-- Imported 'stats.csv' ! --")
+        processedDataDir,
+        'stats.csv')
 
+statsDataset = importData(processedDataDir, 'stats.csv')
 
 # Statistical analysis
-print(statsDataset.loc['Al Horford', :])
+print(statsDataset.iloc[np.where(
+    statsDataset['Player'] == 'Al Horford')[0], :7])
+print(injuries.iloc[np.where(injuries['Player'] == 'Al Horford')[0]].head())
 
 
 ##
