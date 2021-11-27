@@ -6,7 +6,9 @@ the predictor.
 @ Alexandre Cortez Santos (???)
 """
 
+from os import sep
 from matplotlib.pyplot import title
+from numpy.lib.function_base import insert
 from pandas.core import series
 from dependencies import *
 from utils import *
@@ -26,11 +28,12 @@ stats = [
     ('fga', ['W', 'L', 'PTS', 'FTM', 'FTA', 'FT%', 'OREB', 'DREB', 'REB',
              'AST', 'TOV', 'STL', 'BLK', 'PF', 'FP', 'DD2', 'TD3', '+/-']),
     ('rebounds', ['W', 'L']),
-    ('speed&distance', ['W', 'L']),
+    ('speed&distance', ['W', 'L', 'Dist. Feet']),
 ]
 
 debug = False
-eda = False
+injuries_eda = False
+stats_eda = True
 # ----------
 
 # Exploratory Data Analysis on the injuries dataset
@@ -45,20 +48,19 @@ if not path.isfile(path.join(processedDataDir, 'injuries.csv')):
     )
 
 injuries = importData(processedDataDir, 'injuries.csv')
-if eda:
+if injuries_eda:
     # 1 -- Teams with the most injuries
     # !! - Limited to the top 'limit' most injured teams
     topInjuriesTeams = seriesToFrame(
         injuries['Team'].value_counts(),
         ['Team', '# of Events']
-    ).sort_index(ascending=False)
+    ).sort_index()
     plotHistogram(
         topInjuriesTeams,
         topInjuriesTeams.columns,
         limit=10,
         title='Injuries by team'
     )
-
     # 2 -- Players with the most injuries
     # !! - Limited to the top 'limit' most injured players
     topInjuriesPlayers = seriesToFrame(
@@ -212,7 +214,14 @@ if len(listdir(processedDataDir)) <= len(stats) + 1:
     drives = importData(processedDataDir, 'drives.csv')
     fga = importData(processedDataDir, 'fga.csv')
     rebounds = importData(processedDataDir, 'rebounds.csv')
-    speed_distance = importData(processedDataDir, 'speed&distance.csv')
+    speed_distance = importData(
+        processedDataDir,
+        'speed&distance.csv').rename(
+            columns={'Dist. Miles': 'Dist', 'Dist. Miles Off': 'Dist. Off', 'Dist. Miles Def': 'Dist. Def'})
+
+    # convert distance to km and speed to km/h
+    for col in ['Dist', 'Dist. Off', 'Dist. Def', 'Avg Speed', 'Avg Speed Off', 'Avg Speed Off']:
+        speed_distance[col] = milesToKm(speed_distance[col])
 
     # generate final dataset with all relevant tracking data
     exportData(
@@ -223,10 +232,24 @@ if len(listdir(processedDataDir)) <= len(stats) + 1:
 statsDataset = importData(processedDataDir, 'stats.csv')
 
 # Statistical analysis
-print(statsDataset.iloc[np.where(
-    statsDataset['Player'] == 'Al Horford')[0], :7])
-print(injuries.iloc[np.where(injuries['Player'] == 'Al Horford')[0]].head())
+cols = list(
+    set(statsDataset.columns.values.tolist()) -
+    set(['Player', 'Team', 'Season', 'Age'])
+)
 
+seasonStats = {}
+for season in seasons:
+    s = insertChar(season, ind=2, sep='/')
+    seasonFilter = np.where(statsDataset['Season'] == s)[0]
+    for i in range(len(cols)):
+        seasonStats[f'{s}-{cols[i]}'] = getStatsBySeason(
+            statsDataset,
+            seasonFilter,
+            list(statsDataset.columns.values).index(cols[i])
+        )
+
+seasonStats = pd.DataFrame.from_dict(seasonStats, orient='index')
+print(seasonStats)
 
 ##
 """

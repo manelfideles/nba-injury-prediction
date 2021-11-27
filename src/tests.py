@@ -16,7 +16,7 @@ def plotHistogram(data, axlabels, title=None, limit=10, orientation='horz', dim=
     _, ax = plt.subplots()
     if dim == 2:
         if orientation == 'vert':
-            ax.bar(data.iloc[:limit+1, 0], data.iloc[:limit+1, 1])
+            ax.bar(data.iloc[0:limit, 0], data.iloc[0:limit, 1])
             ax.set_xlabel(axlabels[0])
             ax.set_ylabel(axlabels[1])
         else:

@@ -30,8 +30,8 @@ teamTricodes = {
     'Heat': 'MIA', 'Bucks': 'MIL', 'Timberwolves': 'MIN',
     'Pelicans': 'NOP', 'Knicks': 'NYK', 'Thunder': 'OKC',
     'Magic': 'ORL', '76ers': 'PHI', 'Suns': 'PHX',
-    'Blazers': 'POR', 'Kings': 'SAC', 'Spurs': 'SAS', 'Raptors': 'TOR',
-    'Jazz': 'UTA', 'Wizards': 'WAS'
+    'Blazers': 'POR', 'Kings': 'SAC', 'Spurs': 'SAS',
+    'Raptors': 'TOR', 'Jazz': 'UTA', 'Wizards': 'WAS'
 }
 
 # ----------
@@ -73,6 +73,13 @@ def importTrackingData(folder, season):
     )
 
 
+def insertChar(s, ind=2, sep='/'):
+    """
+    Inserts 'sep' in 's' at index 'ind'.
+    """
+    return s[:ind] + sep + s[ind:]
+
+
 def concatSeasons(stat, seasons):
     """
     Concatenates stat data relative to all
@@ -87,7 +94,7 @@ def concatSeasons(stat, seasons):
         if stat == 'fga':
             seasondf = seasondf.loc[:, ~seasondf.columns.str.endswith('RANK')]
 
-        seasondf['Season'] = season[:2] + '/' + season[2:]
+        seasondf['Season'] = insertChar(season, ind=2, sep='/')
         frames.append(seasondf)
     return pd.concat(frames)
 
@@ -193,9 +200,17 @@ def findInNotes(notes, keyword):
     return notes.str.contains(keyword, regex=True)
 
 
-# Statistical data
+def milesToKm(df):
+    return df * 0.621371
+
+
+# Statistical methods
 def normalize(df):
     return (df - df.mean()) / df.std()
+
+
+def mean(df):
+    return df.mean()
 
 
 def median(df):
@@ -225,3 +240,16 @@ def zscore(df, k):
 
 def zcr(df):
     return ((df[:-1] * df[1:]) < 0).sum()
+
+
+def getStatsBySeason(df, seasonFilter, colInd):
+    seasonDf = normalize(df.iloc[seasonFilter, colInd])
+    return {
+        'mean': mean(seasonDf),
+        'median': median(seasonDf),
+        'variance': variance(seasonDf),
+        'skewness': skewness(seasonDf),
+        'kurtosis': kurtosis(seasonDf),
+        'iqr': iqr(seasonDf),
+        'zcr': zcr(seasonDf)
+    }
