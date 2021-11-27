@@ -20,6 +20,18 @@ from dependencies import *
 
 rawDataDir = path.realpath('./assets/raw')
 processedDataDir = path.realpath('./assets/processed')
+teamTricodes = {
+    'Hawks': 'ATL', 'Nets': 'BKN', 'Celtics': 'BOS',
+    'Hornets': 'CHA', 'Bulls': 'CHI', 'Cavaliers': 'CLE',
+    'Mavericks': 'DAL', 'Nuggets': 'DEN', 'Pistons': 'DET',
+    'Warriors': 'GSW', 'Rockets': 'HOU', 'Pacers': 'IND',
+    'Clippers': 'LAC', 'Lakers': 'LAL', 'Grizzlies': 'MEM',
+    'Heat': 'MIA', 'Bucks': 'MIL', 'Timberwolves': 'MIN',
+    'Pelicans': 'NOP', 'Knicks': 'NYK', 'Thunder': 'OKC',
+    'Magic': 'ORL', '76ers': 'PHI', 'Suns': 'PHX',
+    'Blazers': 'POR', 'Kings': 'SAC', 'Spurs': 'SAS', 'Raptors': 'TOR',
+    'Jazz': 'UTA', 'Wizards': 'WAS'
+}
 
 # ----------
 
@@ -70,7 +82,7 @@ def concatSeasons(stat, seasons):
         if stat == 'fga':
             seasondf = seasondf.loc[:, ~seasondf.columns.str.endswith('RANK')]
 
-        seasondf['Season'] = season
+        seasondf['Season'] = season[:2] + '/' + season[2:]
         frames.append(seasondf)
     return pd.concat(frames)
 
@@ -82,22 +94,12 @@ def outputFullStats(stats, seasons):
     directory.
     """
     for stat in stats:
-        if stat != 'og_injuries':
-            df = concatSeasons(stat[0], seasons)
-            df = df.drop(columns=stat[1])
-            exportData(
-                df,
-                path.join(processedDataDir, f'{stat[0]}.csv')
-            )
-        # -- export injuries dataset
-        else:
-            injuriesDf = preprocessInjuries(
-                importData(path.join(rawDataDir, f'{stat}.csv'))
-            )
-            exportData(
-                injuriesDf,
-                path.join(processedDataDir, 'injuries.csv')
-            )
+        df = concatSeasons(stat[0], seasons)
+        df = df.drop(columns=stat[1])
+        exportData(
+            df,
+            path.join(processedDataDir, f'{stat[0]}.csv')
+        )
     return 1
 
 
@@ -105,12 +107,37 @@ def splitDate(df):
     """
     Change Date column format to
     separate columns with yy, mm, dd.
+    Eliminates Date column.
     """
     datesDf = pd.DataFrame(
         df['Date'].str.split('-', 2).to_list(),
         columns=['Year', 'Month', 'Day']
     )
-    df = pd.concat([datesDf, df], axis=1)
+    df = pd.concat([datesDf, df], axis=1).drop(['Date'], axis=1)
+    return df
+
+
+def concatStats(dataframes):
+    """
+    Returns a single DataFrame with all the relevant NBA stats
+    scraped from their website.
+    """
+    mergeOn = ['Season', 'Player', 'Team', 'GP', 'MIN']
+    return reduce(lambda left, right: pd.merge(
+        left, right, on=mergeOn, how='inner'
+    ), dataframes)
+
+
+def setTeamId(df, teams=teamTricodes):
+    """
+    Change Team name to its tri-code
+    i.e -- Bulls -> CHI
+    """
+    for name, tricode in teams.items():
+        df['Team'] = df['Team'].replace(
+            name,
+            tricode
+        )
     return df
 
 
@@ -121,26 +148,24 @@ def preprocessInjuries(df):
     """
     # Drops the lines where the 'Relinquished'
     # column in the 'injuries' dataset is equal to
-    # NaN, i.e a player was activated from IL.
+    # NaN, i.e player was activated from IL.
+    # 'Acquired' column is full of NaN's, so we drop it
     df = df.drop(
         np.where(pd.isnull(df['Relinquished']))[0]
     ).reset_index(drop=True)
-
-    # 'Acquired' column is full of NaN's, so we drop it
     df = df.drop(columns=['Acquired'])
 
-    # change 'Relinquished' column to 'Player' for readability
+    # for readability and coherence with the other datasets
     df = df.rename(columns={'Relinquished': 'Player'})
+    df = splitDate(df)
+    df = setTeamId(df)
 
-    # change Date column to yy-mm-dd
-    # and eliminate 'Date' column
-    df = splitDate(df).drop(['Date'], axis=1)
-    return df
-
-    # todo - Remove data until 2013-04-17 (end of '12-'13 season)
+    # @TODO - Remove data until 2013-10-29 (start of the '13-'14 season)
     # pq só temos info acerca das outras stats
-    # a partir do fim dessa época
-    pass
+    # a partir do inicio dessa época
+    return df
+    # cutoff = np.where()
+    # pass
 
 
 def seriesToFrame(series, columns):

@@ -27,34 +27,26 @@ stats = [
              'AST', 'TOV', 'STL', 'BLK', 'PF', 'FP', 'DD2', 'TD3', '+/-']),
     ('rebounds', ['W', 'L']),
     ('speed&distance', ['W', 'L']),
-    'og_injuries'
-]
-
-months = [
-    'Jan', 'Feb', 'Mar',
-    'Abr', 'May', 'Jun',
-    'Jul', 'Ago', 'Set',
-    'Oct', 'Nov', 'Dez'
 ]
 
 debug = False
+eda = False
 # ----------
 
-# generate and save required datasets:
-if len(listdir(processedDataDir)) != len(stats):
-    if outputFullStats(stats, seasons):
-        print('-- Generated datasets! --')
+# Generate 'injuries.csv'.
+if not path.isfile(path.join(processedDataDir, 'injuries.csv')):
+    exportData(
+        preprocessInjuries(
+            importData(path.join(rawDataDir, f'og_injuries.csv'))
+        ),
+        path.join(processedDataDir, 'injuries.csv')
+    )
 
-# import pre-pre-processed player tracking data
-drives = importData(path.join(processedDataDir, 'drives.csv'))
-fga = importData(path.join(processedDataDir, 'fga.csv'))
-rebounds = importData(path.join(processedDataDir, 'rebounds.csv'))
-speed_distance = importData(path.join(processedDataDir, 'speed&distance.csv'))
-injuries = importData(path.join(processedDataDir, 'injuries.csv'))
-print('-- Imported datasets! --')
+# Exploratory Data Analysis on the injuries dataset
+injuriesDataset = None
+if eda:
+    injuriesDataset = importData(path.join(processedDataDir, 'injuries.csv'))
 
-if debug:
-    # Exploratory Data Analysis on the injuries dataset
     # 1 -- Teams with the most injuries
     # !! - Limited to the top 'limit' most injured teams
     topInjuriesTeams = seriesToFrame(
@@ -213,12 +205,39 @@ if debug:
         dim=1
     )
 
+statsDataset = None
+if len(listdir(processedDataDir)) <= len(stats):
+    # generate player tracking datasets
+    if outputFullStats(stats, seasons):
+        print('-- Generated statistics datasets! --')
+
+    # import somewhat pre-processed player tracking data
+    drives = importData(path.join(processedDataDir, 'drives.csv'))
+    fga = importData(path.join(processedDataDir, 'fga.csv'))
+    rebounds = importData(path.join(processedDataDir, 'rebounds.csv'))
+    speed_distance = importData(path.join(
+        processedDataDir,
+        'speed&distance.csv'))
+    print('-- Imported statistics datasets! --')
+
+    # generate final dataset with all relevant tracking data
+    exportData(
+        concatStats([drives, fga, rebounds, speed_distance]),
+        path.join(processedDataDir, 'stats.csv'))
+    print("-- Generated 'stats.csv' ! --")
+else:
+    statsDataset = importData(path.join(processedDataDir, 'stats.csv'))
+    print("-- Imported 'stats.csv' ! --")
+
+
 # Statistical analysis
+print(statsDataset.loc['Al Horford', :])
+
 
 ##
 """
 @TODO -- Dar split ao dataset das injuries em epocas para dar match 
-as stats da api da nba
+as stats da nba
 """
 ##
 
