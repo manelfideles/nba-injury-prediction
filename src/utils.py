@@ -163,15 +163,42 @@ def splitDate(df):
     return df
 
 
-def concatStats(dataframes):
+def concatStats(dataframes, mergeOn):
     """
     Returns a single DataFrame with all the relevant NBA stats
     scraped from their website.
     """
-    mergeOn = ['Season', 'Player', 'Team', 'GP', 'MIN']
     return reduce(lambda left, right: pd.merge(
         left, right, on=mergeOn, how='inner'
     ), dataframes)
+
+
+def getBodyMetrics(filename, dir=rawDataDir):
+    df = importData(dir, filename)[[
+        'season',
+        'player_name',
+        'team_abbreviation',
+        'age',
+        'player_height',
+        'player_weight',
+    ]].rename(
+        columns={
+            'season': 'Season',
+            'player_name': 'Player',
+            'team_abbreviation': 'Team',
+            'age': 'Age',
+            'player_height': 'Height',
+            'player_weight': 'Weight',
+        }
+    )
+    df['Age'] = df['Age'].astype(int)
+    # filter out non-relevant seasons
+    seasonFilter = np.where(
+        (df['Season'].str.split('-').str[0] >= '2013') &
+        (df['Season'].str.split('-').str[0] <= '2019')
+    )
+    df['Season'] = df['Season'].str[2:].replace('-', '/', regex=True)
+    return df.iloc[seasonFilter].sort_values(by=['Season', 'Player']).reset_index(drop=True)
 
 
 def setTeamId(df, teams=teamTricodes):

@@ -212,6 +212,7 @@ if len(listdir(processedDataDir)) <= len(stats) + 1:
     fga = importData(processedDataDir, 'fga.csv')
     rebounds = importData(processedDataDir, 'rebounds.csv')
     speed_distance = importData(processedDataDir, 'speed&distance.csv')
+    body_metrics = getBodyMetrics('body_metrics.csv', rawDataDir)
 
     # generate final dataset with all relevant tracking data
     statsToCompute = [
@@ -219,12 +220,33 @@ if len(listdir(processedDataDir)) <= len(stats) + 1:
         'REB', 'ContestedREB', 'REBChances', 'DeferredREB Chances',
         'Dist', 'Dist. Off', 'Dist. Def'
     ]
-    cs = concatStats([drives, fga, rebounds, speed_distance])
-    st = computeStatTotals(cs, statsToCompute)
+    cs = concatStats(
+        [drives, fga, rebounds, speed_distance],
+        ['Season', 'Player', 'Team', 'GP', 'MIN']
+    )
+    cs2 = concatStats(
+        [cs, body_metrics],
+        ['Season', 'Player', 'Team', 'Age']
+    )
+    st = computeStatTotals(cs2, statsToCompute)
     exportData(st, processedDataDir, 'stats.csv')
 
 statsDataset = importData(processedDataDir, 'stats.csv')
 print(statsDataset.columns.values)
+print(statsDataset.head())
+
+
+""" bodyMetrics = getBodyMetrics('body_metrics.csv')
+print(bodyMetrics.columns.values)
+print(bodyMetrics.head())
+print(statsDataset.head())
+
+dataset_wBodyMetrics = concatStats(
+    [bodyMetrics, statsDataset],
+    ['Season', 'Player', 'Team', 'Age']
+)
+
+print(dataset_wBodyMetrics.head()) """
 
 ##
 """
