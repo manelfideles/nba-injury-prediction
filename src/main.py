@@ -1,15 +1,11 @@
 """
-This is the main file of 
+This is the main file of
 the predictor.
 
 @ Manuel Fideles (2018282990)
 @ Alexandre Cortez Santos (???)
 """
 
-from os import sep
-from matplotlib.pyplot import title
-from numpy.lib.function_base import insert
-from pandas.core import series
 from dependencies import *
 from utils import *
 from tests import *
@@ -25,9 +21,10 @@ seasons = [
 stats = [
     ('drives', ['W', 'L', 'FGM', 'FGA', 'FG%', 'FTM', 'FTA', 'FT%', 'PTS',
                 'PTS%', 'PASS', 'PASS%', 'AST', 'AST%', 'TO', 'TOV%', 'PF', 'PF%']),
-    ('fga', ['W', 'L', 'PTS', 'FTM', 'FTA', 'FT%', 'OREB', 'DREB', 'REB',
+    ('fga', ['W', 'L', 'FGM', 'FG%', '3PM', '3P%', 'PTS', 'FTM', 'FTA', 'FT%', 'OREB', 'DREB', 'REB',
              'AST', 'TOV', 'STL', 'BLK', 'PF', 'FP', 'DD2', 'TD3', '+/-']),
-    ('rebounds', ['W', 'L']),
+    ('rebounds', ['W', 'L', 'ContestedREB%',
+                  'REBChance%', 'AdjustedREB Chance%']),
     ('speed&distance', ['W', 'L', 'Dist. Feet']),
 ]
 
@@ -214,48 +211,25 @@ if len(listdir(processedDataDir)) <= len(stats) + 1:
     drives = importData(processedDataDir, 'drives.csv')
     fga = importData(processedDataDir, 'fga.csv')
     rebounds = importData(processedDataDir, 'rebounds.csv')
-    speed_distance = importData(
-        processedDataDir,
-        'speed&distance.csv').rename(
-            columns={'Dist. Miles': 'Dist', 'Dist. Miles Off': 'Dist. Off', 'Dist. Miles Def': 'Dist. Def'})
-
-    # convert distance to km and speed to km/h
-    for col in ['Dist', 'Dist. Off', 'Dist. Def', 'Avg Speed', 'Avg Speed Off', 'Avg Speed Off']:
-        speed_distance[col] = milesToKm(speed_distance[col])
+    speed_distance = importData(processedDataDir, 'speed&distance.csv')
 
     # generate final dataset with all relevant tracking data
-    exportData(
-        concatStats([drives, fga, rebounds, speed_distance]),
-        processedDataDir,
-        'stats.csv')
+    statsToCompute = [
+        'MIN', 'DRIVES', 'FGA', '3PA',
+        'REB', 'ContestedREB', 'REBChances', 'DeferredREB Chances',
+        'Dist', 'Dist. Off', 'Dist. Def'
+    ]
+    cs = concatStats([drives, fga, rebounds, speed_distance])
+    st = computeStatTotals(cs, statsToCompute)
+    exportData(st, processedDataDir, 'stats.csv')
 
 statsDataset = importData(processedDataDir, 'stats.csv')
-
-# Statistical analysis
-""" 
-cols = list(
-    set(statsDataset.columns.values.tolist()) -
-    set(['Player', 'Team', 'Season', 'Age'])
-)
-seasonStats = {}
-for season in seasons:
-    s = insertChar(season, ind=2, sep='/')
-    seasonFilter = np.where(statsDataset['Season'] == s)[0]
-    for i in range(len(cols)):
-        seasonStats[f'{s}-{cols[i]}'] = getStatsBySeason(
-            statsDataset,
-            seasonFilter,
-            list(statsDataset.columns.values).index(cols[i])
-        )
-
-seasonStats = pd.DataFrame.from_dict(seasonStats, orient='index')
-"""
-seasonsStats = getStatsAllSeasons(statsDataset, seasons)
-print(seasonsStats.head())
+print(statsDataset.columns.values)
 
 ##
 """
-@TODO -- Dar split ao dataset das injuries em epocas para dar match 
+@TODO #1 -- Adicionar dados de altura e peso ao dataset
+@TODO #2 -- Dar split ao dataset das injuries em epocas para dar match
 as stats da nba
 """
 ##

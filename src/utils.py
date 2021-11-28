@@ -99,6 +99,18 @@ def concatSeasons(stat, seasons):
     return pd.concat(frames)
 
 
+def computeStatTotals(df, cols):
+    """
+    Computes total values of stats and
+    adds them to dataframe.
+    """
+    for stat in cols:
+        df[f'{stat}-PG'] = df[stat]  # save per-game column
+        df[f'{stat}-TOT'] = df[stat].multiply(df['GP'], axis='index')
+    df = df.drop(columns=cols)
+    return df
+
+
 def outputFullStats(stats, seasons):
     """
     For each stat, this function outputs
@@ -108,6 +120,27 @@ def outputFullStats(stats, seasons):
     for stat in stats:
         df = concatSeasons(stat[0], seasons)
         df = df.drop(columns=stat[1])
+        # change col names and convert distance values to Km or metres
+        if stat[0] == 'speed&distance':
+            df = df.rename(
+                columns={
+                    'Dist. Miles': 'Dist',
+                    'Dist. Miles Off': 'Dist. Off',
+                    'Dist. Miles Def': 'Dist. Def',
+                    'Avg Speed': 'Avg Speed',
+                    'Avg Speed Off': 'Avg Speed Off',
+                    'Avg Speed Def': 'Avg Speed Def'
+                })
+            for col in ['Dist', 'Dist. Off', 'Dist. Def', 'Avg Speed', 'Avg Speed Off', 'Avg Speed Def']:
+                df[col] = milesToKm(df[col])
+        if stat[0] == 'rebounds':
+            df = df.rename(
+                columns={
+                    'DeferredREB Chances': 'DeferredREB Chances',
+                    'AVG REBDistance': 'AVG REBDistance',
+                }
+            )
+            df['AVG REBDistance'] = feetToMetres(df['AVG REBDistance'])
         exportData(
             df,
             processedDataDir,
@@ -135,7 +168,7 @@ def concatStats(dataframes):
     Returns a single DataFrame with all the relevant NBA stats
     scraped from their website.
     """
-    mergeOn = ['Player', 'Team', 'GP', 'MIN', 'Season']
+    mergeOn = ['Season', 'Player', 'Team', 'GP', 'MIN']
     return reduce(lambda left, right: pd.merge(
         left, right, on=mergeOn, how='inner'
     ), dataframes)
@@ -201,7 +234,11 @@ def findInNotes(notes, keyword):
 
 
 def milesToKm(df):
-    return df * 0.621371
+    return df * 1.60934
+
+
+def feetToMetres(df):
+    return df * 0.3048
 
 
 # Statistical methods
@@ -242,7 +279,7 @@ def zcr(df):
     return ((df[:-1] * df[1:]) < 0).sum()
 
 
-def getStatsAllSeason(df, seasons):
+def getStatsAllSeasons(df, seasons):
     cols = list(
         set(df.columns.values.tolist()) -
         set(['Player', 'Team', 'Season', 'Age'])
