@@ -242,6 +242,23 @@ def zcr(df):
     return ((df[:-1] * df[1:]) < 0).sum()
 
 
+def getStatsAllSeason(df, seasons):
+    cols = list(
+        set(df.columns.values.tolist()) -
+        set(['Player', 'Team', 'Season', 'Age'])
+    )
+    seasonStats = {}
+    for season in seasons:
+        s = insertChar(season, ind=2, sep='/')
+        seasonFilter = np.where(df['Season'] == s)[0]
+        for i in range(len(cols)):
+            seasonStats[f'{s}-{cols[i]}'] = getStatsBySeason(
+                df,
+                seasonFilter,
+                list(df.columns.values).index(cols[i]))
+    return pd.DataFrame.from_dict(seasonStats, orient='index')
+
+
 def getStatsBySeason(df, seasonFilter, colInd):
     seasonDf = normalize(df.iloc[seasonFilter, colInd])
     return {

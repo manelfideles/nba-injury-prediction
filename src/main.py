@@ -232,11 +232,11 @@ if len(listdir(processedDataDir)) <= len(stats) + 1:
 statsDataset = importData(processedDataDir, 'stats.csv')
 
 # Statistical analysis
+""" 
 cols = list(
     set(statsDataset.columns.values.tolist()) -
     set(['Player', 'Team', 'Season', 'Age'])
 )
-
 seasonStats = {}
 for season in seasons:
     s = insertChar(season, ind=2, sep='/')
@@ -249,7 +249,9 @@ for season in seasons:
         )
 
 seasonStats = pd.DataFrame.from_dict(seasonStats, orient='index')
-print(seasonStats)
+"""
+seasonsStats = getStatsAllSeasons(statsDataset, seasons)
+print(seasonsStats.head())
 
 ##
 """
