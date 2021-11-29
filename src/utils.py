@@ -34,7 +34,17 @@ teamTricodes = {
     'Raptors': 'TOR', 'Jazz': 'UTA', 'Wizards': 'WAS'
 }
 
-# ----------
+seasonDates = {
+    '13/14': ('2013-10-09', '2014-04-16'),
+    '14/15': ('2014-10-28', '2015-04-15'),
+    '15/16': ('2015-10-27', '2016-4-13'),
+    '16/17': ('2016-10-25', '2017-04-12'),
+    '17/18': ('2017-10-17', '2018-04-11'),
+    '18/19': ('2018-10-16', '2019-04-10'),
+    '19/20': ('2019-10-22', '2020-08-15'),
+}
+
+# --------------
 
 
 def importData(filedir, filename):
@@ -60,7 +70,7 @@ def importTrackingData(folder, season):
     Outputs a dataframe with the contents
     of directory with path
     'rawDataDir/folder/player_tracking_folder_season'.
-    'season' argument must be in a 'yy''yy' 
+    'season' argument must be in a 'yy''yy'
     format, i.e drives1314 is the dataset relative to
     drives per game in the '13-'14 season.
     """
@@ -153,13 +163,12 @@ def splitDate(df):
     """
     Change Date column format to
     separate columns with yy, mm, dd.
-    Eliminates Date column.
     """
     datesDf = pd.DataFrame(
         df['Date'].str.split('-', 2).to_list(),
         columns=['Year', 'Month', 'Day']
     )
-    df = pd.concat([datesDf, df], axis=1).drop(['Date'], axis=1)
+    df = pd.concat([datesDf, df], axis=1)
     return df
 
 
@@ -214,7 +223,29 @@ def setTeamId(df, teams=teamTricodes):
     return df
 
 
-def preprocessInjuries(df):
+def splitInjuriesIntoSeasons(df, seasonDates):
+    # temporarily disable chained assignment warning
+    pd.options.mode.chained_assignment = None
+
+    allSeasonsDfs = []
+    # create new column with dummy values
+    df['Season'] = '-'
+    for season, dates in seasonDates.items():
+        startDate = dates[0]
+        endDate = dates[1]
+        seasonInjuriesFilter = np.where(
+            (df['Date'] >= startDate) &
+            (df['Date'] <= endDate)
+        )[0]
+        seasonData = df.iloc[seasonInjuriesFilter]
+        seasonData['Season'] = season
+        allSeasonsDfs += [seasonData]
+    # turn warning back on
+    pd.options.mode.chained_assignment = 'warn'
+    return pd.concat(allSeasonsDfs).drop(columns=['Date']).reset_index(drop=True)
+
+
+def preprocessInjuries(df, seasonDates=seasonDates):
     """
     Removes players that returned from injury.
     Splits date into yy-mm-dd.
@@ -236,8 +267,9 @@ def preprocessInjuries(df):
     # @TODO - Remove data until 2013-10-29 (start of the '13-'14 season)
     # pq só temos info acerca das outras stats
     # a partir do inicio dessa época
+    df = splitInjuriesIntoSeasons(df, seasonDates)
+
     return df
-    # cutoff = np.where()
     # pass
 
 

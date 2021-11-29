@@ -38,7 +38,7 @@ stats_eda = True
 if not path.isfile(path.join(processedDataDir, 'injuries.csv')):
     exportData(
         preprocessInjuries(
-            importData(rawDataDir, f'og_injuries.csv')
+            importData(rawDataDir, f'og_injuries.csv'),
         ),
         processedDataDir,
         'injuries.csv'
@@ -231,29 +231,19 @@ if len(listdir(processedDataDir)) <= len(stats) + 1:
     st = computeStatTotals(cs2, statsToCompute)
     exportData(st, processedDataDir, 'stats.csv')
 
+
 statsDataset = importData(processedDataDir, 'stats.csv')
-print(statsDataset.columns.values)
-print(statsDataset.head())
+print(statsDataset)
+print(injuries)
+
+# ---
+# ---
 
 
-""" bodyMetrics = getBodyMetrics('body_metrics.csv')
-print(bodyMetrics.columns.values)
-print(bodyMetrics.head())
-print(statsDataset.head())
-
-dataset_wBodyMetrics = concatStats(
-    [bodyMetrics, statsDataset],
-    ['Season', 'Player', 'Team', 'Age']
-)
-
-print(dataset_wBodyMetrics.head()) """
-
-##
 """
-@TODO #1 -- Adicionar dados de altura e peso ao dataset
-@TODO #2 -- Dar split ao dataset das injuries em epocas para dar match
+@TODO #1 -- Dar split ao dataset das
+injuries em epocas para dar match
 as stats da nba
 """
-##
 
 print('Done')
