@@ -292,6 +292,10 @@ def findInNotes(notes, keyword):
     return notes.str.contains(keyword, regex=True)
 
 
+def calculatePlayerBMI(height, weight):
+    return (weight / (height/100) ** 2)
+
+
 def milesToKm(df):
     return df * 1.60934
 

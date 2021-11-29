@@ -229,15 +229,19 @@ if len(listdir(processedDataDir)) <= len(stats) + 1:
         ['Season', 'Player', 'Team', 'Age']
     )
     st = computeStatTotals(cs2, statsToCompute)
+    st['BMI'] = calculatePlayerBMI(st['Height'], st['Weight'])
     exportData(st, processedDataDir, 'stats.csv')
 
 
 statsDataset = importData(processedDataDir, 'stats.csv')
-print(statsDataset)
-print(injuries)
 
-# ---
-# ---
+# para cada jogador:
+#   - contar o # de injuries que teve naquela epoca
+#   - contar o # de rests que teve naquela epoca
+#   - contar o # de km viajados naquela epoca
+#   - contar o # de mudanças de fuso-horário
+#   - contar o # de b2b jogados naquela epoca
+# adicionar ao dataset de stats
 
 
 """
