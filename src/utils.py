@@ -83,10 +83,14 @@ def importTrackingData(folder, season):
     )
 
 
-def insertChar(s, ind=2, sep='/'):
+def insertChar(s, ind=2, sep='/', replace=False):
     """
-    Inserts 'sep' in 's' at index 'ind'.
+    Inserts 'sep' in 's' at index 'ind' 
+    if there's no separator in 's'.
+    Otherwise, replaces sep and returns
     """
+    if replace:
+        return s.replace(s[ind], sep)
     return s[:ind] + sep + s[ind:]
 
 
@@ -391,6 +395,46 @@ def sanitizeTravelMetrics(dir, filename):
 def processTravelData(df):
     # 1 - contar o # de km viajados por
     # cada jogador em cada época
+    distanceCnt = pd.DataFrame(
+        {'Dist Count': df.groupby(
+            ['Season', 'Player', 'Distance Travelled']).size()}
+    ).sort_values(by=['Player', 'Season']).reset_index()
+    distanceCnt['Total Distance Travelled (km)'] = milesToKm(distanceCnt['Distance Travelled']) * \
+        distanceCnt['Dist Count']
+    distanceCnt['Season'] = distanceCnt['Season'].str[2:].replace(
+        '-', '/', regex=True)
+
     # 2 - contar o # de horas
     # de mudanças de fuso-horário
-    pass
+    tzCnt = pd.DataFrame(
+        {'TZ Count': df.groupby(
+            ['Season', 'Player', 'TZ Shift (hrs)']).size()}
+    ).sort_values(by=['Player', 'Season']).reset_index()
+    tzCnt['Total TZ Shifts (hrs)'] = tzCnt['TZ Shift (hrs)'].abs() * \
+        tzCnt['TZ Count']
+    tzCnt['Season'] = tzCnt['Season'].str[2:].replace('-', '/', regex=True)
+
+    playerTravelData = {}
+    for season, player in set(zip(distanceCnt['Season'], distanceCnt['Player'])):
+        distanceFilter = distanceCnt[
+            (distanceCnt['Player'] == player) &
+            (distanceCnt['Season'] == season)
+        ]
+        tzFilter = tzCnt[
+            (tzCnt['Player'] == player) &
+            (tzCnt['Season'] == season)
+        ]
+        playerTravelData[player] = (
+            season,
+            distanceFilter['Total Distance Travelled (km)'].sum(),
+            tzFilter['Total TZ Shifts (hrs)'].sum()
+        )
+    df = pd.DataFrame.from_dict(playerTravelData).T.reset_index().rename(
+        columns={
+            'index': 'Player',
+            0: 'Season',
+            1: 'Dist Travelled (km) (Season)',
+            2: 'TZ Shifts (Season)'
+        }
+    )
+    exportData(df, processedDataDir, 'travels.csv')

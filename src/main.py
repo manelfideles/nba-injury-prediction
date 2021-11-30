@@ -33,8 +33,9 @@ injuries_eda = False
 stats_eda = True
 # ----------
 
-# Exploratory Data Analysis on the injuries dataset
-# Generate 'injuries.csv' if non-existent
+
+# -- Dataset generation
+# 'injuries.csv'
 if not path.isfile(path.join(processedDataDir, 'injuries.csv')):
     exportData(
         preprocessInjuries(
@@ -44,6 +45,48 @@ if not path.isfile(path.join(processedDataDir, 'injuries.csv')):
         'injuries.csv'
     )
 
+# 'travels.csv'
+if not path.isfile(path.join(processedDataDir, 'travels.csv')):
+    exportData(
+        processTravelData(
+            sanitizeTravelMetrics(rawDataDir, 'travel_metrics.csv')
+        ),
+        processedDataDir,
+        'travels.csv'
+    )
+
+# 'stats.csv'
+if len(listdir(processedDataDir)) <= len(stats) + 1:
+    # generate player tracking datasets
+    outputFullStats(stats, seasons)
+    # import somewhat pre-processed player tracking data
+    drives = importData(processedDataDir, 'drives.csv')
+    fga = importData(processedDataDir, 'fga.csv')
+    rebounds = importData(processedDataDir, 'rebounds.csv')
+    speed_distance = importData(processedDataDir, 'speed&distance.csv')
+    body_metrics = getBodyMetrics('body_metrics.csv', rawDataDir)
+
+    # generate final dataset with all relevant tracking data
+    statsToCompute = [
+        'MIN', 'DRIVES', 'FGA', '3PA',
+        'REB', 'ContestedREB', 'REBChances', 'DeferredREB Chances',
+        'Dist', 'Dist. Off', 'Dist. Def'
+    ]
+    cs = concatStats(
+        [drives, fga, rebounds, speed_distance],
+        ['Season', 'Player', 'Team', 'GP', 'MIN']
+    )
+    cs2 = concatStats(
+        [cs, body_metrics],
+        ['Season', 'Player', 'Team', 'Age']
+    )
+    st = computeStatTotals(cs2, statsToCompute)
+    st['BMI'] = calculatePlayerBMI(st['Height'], st['Weight'])
+    exportData(st, processedDataDir, 'stats.csv')
+
+# ---------------------
+
+# Exploratory Data Analysis on the injuries dataset
 injuries = importData(processedDataDir, 'injuries.csv')
 if injuries_eda:
     # 1 -- Teams with the most injuries
@@ -203,47 +246,14 @@ if injuries_eda:
         dim=1
     )
 
-# Generate 'stats.csv' if non-existent
-if len(listdir(processedDataDir)) <= len(stats) + 1:
-    # generate player tracking datasets
-    outputFullStats(stats, seasons)
-    # import somewhat pre-processed player tracking data
-    drives = importData(processedDataDir, 'drives.csv')
-    fga = importData(processedDataDir, 'fga.csv')
-    rebounds = importData(processedDataDir, 'rebounds.csv')
-    speed_distance = importData(processedDataDir, 'speed&distance.csv')
-    body_metrics = getBodyMetrics('body_metrics.csv', rawDataDir)
 
-    # generate final dataset with all relevant tracking data
-    statsToCompute = [
-        'MIN', 'DRIVES', 'FGA', '3PA',
-        'REB', 'ContestedREB', 'REBChances', 'DeferredREB Chances',
-        'Dist', 'Dist. Off', 'Dist. Def'
-    ]
-    cs = concatStats(
-        [drives, fga, rebounds, speed_distance],
-        ['Season', 'Player', 'Team', 'GP', 'MIN']
-    )
-    cs2 = concatStats(
-        [cs, body_metrics],
-        ['Season', 'Player', 'Team', 'Age']
-    )
-    st = computeStatTotals(cs2, statsToCompute)
-    st['BMI'] = calculatePlayerBMI(st['Height'], st['Weight'])
-    exportData(st, processedDataDir, 'stats.csv')
-
-
-# statsDataset = importData(processedDataDir, 'stats.csv')
+statsDataset = importData(processedDataDir, 'stats.csv')
+travelDataset = importData(processedDataDir, 'travels.csv')
 
 # para cada jogador:
 #   - contar o # de injuries que teve naquela epoca
 #   - contar o # de rests que teve naquela epoca
 # adicionar ao dataset de stats
 
-travelMetrics = sanitizeTravelMetrics(
-    rawDataDir,
-    'travel_metrics.csv'
-)
-print(travelMetrics)
 
 print('Done')
