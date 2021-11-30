@@ -370,3 +370,27 @@ def getStatsBySeason(df, seasonFilter, colInd):
         'iqr': iqr(seasonDf),
         'zcr': zcr(seasonDf)
     }
+
+
+def sanitizeTravelMetrics(dir, filename):
+    return importData(dir, filename)[[
+        'Season',
+        'Player',
+        'Team',
+        'Distance',
+        'Flight Time',
+        'Shift (hrs)'
+    ]].rename(
+        columns={
+            'Distance': 'Distance Travelled',
+            'Shift (hrs)': 'TZ Shift (hrs)'
+        }
+    )
+
+
+def processTravelData(df):
+    # 1 - contar o # de km viajados por
+    # cada jogador em cada época
+    # 2 - contar o # de horas
+    # de mudanças de fuso-horário
+    pass

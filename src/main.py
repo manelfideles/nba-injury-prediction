@@ -233,23 +233,17 @@ if len(listdir(processedDataDir)) <= len(stats) + 1:
     exportData(st, processedDataDir, 'stats.csv')
 
 
-statsDataset = importData(processedDataDir, 'stats.csv')
-print(statsDataset.columns.values)
-print(statsDataset.head())
+# statsDataset = importData(processedDataDir, 'stats.csv')
 
 # para cada jogador:
 #   - contar o # de injuries que teve naquela epoca
 #   - contar o # de rests que teve naquela epoca
-#   - contar o # de km viajados naquela epoca
-#   - contar o # de mudanças de fuso-horário
-#   - contar o # de b2b jogados naquela epoca
 # adicionar ao dataset de stats
 
-
-"""
-@TODO #1 -- Dar split ao dataset das
-injuries em epocas para dar match
-as stats da nba
-"""
+travelMetrics = sanitizeTravelMetrics(
+    rawDataDir,
+    'travel_metrics.csv'
+)
+print(travelMetrics)
 
 print('Done')
