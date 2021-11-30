@@ -234,6 +234,8 @@ if len(listdir(processedDataDir)) <= len(stats) + 1:
 
 
 statsDataset = importData(processedDataDir, 'stats.csv')
+print(statsDataset.columns.values)
+print(statsDataset.head())
 
 # para cada jogador:
 #   - contar o # de injuries que teve naquela epoca
