@@ -11,7 +11,6 @@ the 'src' directory.
 @ Alexandre Cortez Santos (???)
 """
 
-from pandas.core.reshape import merge
 from dependencies import *
 
 # -- globals
@@ -279,9 +278,6 @@ def preprocessInjuries(df, seasonDates=seasonDates):
     # pq só temos info acerca das outras stats
     # a partir do inicio dessa época
     df = splitInjuriesIntoSeasons(df, seasonDates)
-
-    # remove dots in 'Player' col
-    df['Player'] = removeDotsInName(df)
 
     return df
     # pass
