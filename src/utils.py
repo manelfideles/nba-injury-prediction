@@ -11,6 +11,7 @@ the 'src' directory.
 @ Alexandre Cortez Santos (???)
 """
 
+from pandas.core.reshape import merge
 from dependencies import *
 
 # -- globals
@@ -85,7 +86,7 @@ def importTrackingData(folder, season):
 
 def insertChar(s, ind=2, sep='/', replace=False):
     """
-    Inserts 'sep' in 's' at index 'ind' 
+    Inserts 'sep' in 's' at index 'ind'
     if there's no separator in 's'.
     Otherwise, replaces sep and returns
     """
@@ -156,7 +157,7 @@ def outputFullStats(stats, seasons):
             )
             df['AVG REBDistance'] = feetToMetres(df['AVG REBDistance'])
         exportData(
-            df,
+            df.reset_index(drop=True).sort_values(by=['Season', 'Player']),
             processedDataDir,
             f'{stat[0]}.csv'
         )
@@ -176,24 +177,24 @@ def splitDate(df):
     return df
 
 
-def concatStats(dataframes, mergeOn):
+def concatStats(dfs, ignore=None):
     """
     Returns a single DataFrame with all the relevant NBA stats
     scraped from their website.
     """
-    return reduce(lambda left, right: pd.merge(
-        left, right, on=mergeOn, how='inner'
-    ), dataframes)
+    if ignore:
+        dfs = [df.drop(columns=ignore) for df in dfs]
+    return pd.concat(dfs, join='outer', axis=1)
 
 
 def getBodyMetrics(filename, dir=rawDataDir):
     df = importData(dir, filename)[[
-        'season',
         'player_name',
         'team_abbreviation',
         'age',
         'player_height',
         'player_weight',
+        'season',
     ]].rename(
         columns={
             'season': 'Season',
@@ -211,7 +212,9 @@ def getBodyMetrics(filename, dir=rawDataDir):
         (df['Season'].str.split('-').str[0] <= '2019')
     )
     df['Season'] = df['Season'].str[2:].replace('-', '/', regex=True)
-    return df.iloc[seasonFilter].sort_values(by=['Season', 'Player']).reset_index(drop=True)
+    df = df.iloc[seasonFilter].reset_index(
+        drop=True).sort_values(by=['Season', 'Player'])
+    exportData(df, processedDataDir, 'bodymet.csv')
 
 
 def setTeamId(df, teams=teamTricodes):
@@ -392,49 +395,119 @@ def sanitizeTravelMetrics(dir, filename):
     )
 
 
-def processTravelData(df):
-    # 1 - contar o # de km viajados por
-    # cada jogador em cada época
+def calcDistanceMetrics(df):
+    return milesToKm(df['Distance Travelled']) * df['Count']
+
+
+def calcTzMetrics(df):
+    return df['TZ Shift (hrs)'].abs() * df['Count']
+
+
+def extractTravelMetrics(df, met, cols):
+    # group by desired metric (and season and player)
+    cnt = pd.DataFrame(
+        {'Count': df.groupby(
+            ['Player', 'Season', cols[0]]).size()}
+    ).sort_values(by=['Season', 'Player']).reset_index()
+
+    # perform necessary changes to dataset
+    if met == 'distance':
+        cnt[cols[1]] = calcDistanceMetrics(cnt)
+    else:
+        cnt[cols[1]] = calcTzMetrics(cnt)
+    cnt['Season'] = cnt['Season'].str[2:].replace(
+        '-', '/', regex=True)
+
+    # drop unnecessary cols and sum values
+    cnt = cnt.drop(columns=[cols[0], 'Count'])
+    cnt = cnt \
+        .groupby(['Player', 'Season'])[cols[1]] \
+        .sum() \
+        .reset_index()
+    cnt = cnt \
+        .sort_values(by=['Season', 'Player']) \
+        .reset_index(drop=True)
+    return cnt
+
+
+def getDistanceTravelledData(df):
     distanceCnt = pd.DataFrame(
         {'Dist Count': df.groupby(
-            ['Season', 'Player', 'Distance Travelled']).size()}
-    ).sort_values(by=['Player', 'Season']).reset_index()
+            ['Player', 'Season', 'Distance Travelled']).size()}
+    ).sort_values(by=['Season', 'Player']).reset_index()
+
     distanceCnt['Total Distance Travelled (km)'] = milesToKm(distanceCnt['Distance Travelled']) * \
         distanceCnt['Dist Count']
     distanceCnt['Season'] = distanceCnt['Season'].str[2:].replace(
         '-', '/', regex=True)
+    distanceCnt = distanceCnt.drop(
+        columns=['Distance Travelled', 'Dist Count'])
+    distanceCnt = distanceCnt \
+        .groupby(['Player', 'Season'])['Total Distance Travelled (km)'] \
+        .sum() \
+        .reset_index()
+    distanceCnt = distanceCnt.sort_values(
+        by=['Season', 'Player']).reset_index(drop=True)
+    return distanceCnt
+
+
+def getTzData(df):
+    tzCnt = pd.DataFrame(
+        {'TZ Count': df.groupby(
+            ['Player', 'Season', 'TZ Shift (hrs)']).size()}
+    ).sort_values(by=['Season', 'Player']).reset_index()
+
+    tzCnt['Total TZ Shifts (hrs)'] = tzCnt['TZ Shift (hrs)'].abs() \
+        * tzCnt['TZ Count']
+
+    tzCnt['Season'] = tzCnt['Season'].str[2:].replace('-', '/', regex=True)
+    tzCnt = tzCnt.drop(
+        columns=['TZ Shift (hrs)', 'TZ Count'])
+    tzCnt = tzCnt \
+        .groupby(['Player', 'Season'])['Total TZ Shifts (hrs)'] \
+        .sum() \
+        .reset_index()
+    tzCnt = tzCnt.sort_values(
+        by=['Season', 'Player']).reset_index(drop=True)
+    return tzCnt
+
+
+def processTravelData(df):
+    # 1 - contar o # de km viajados por
+    # cada jogador em cada época
+    distanceCnt = extractTravelMetrics(
+        df, 'distance', cols=['Distance Travelled', 'Total Distance Travelled (km)'])
 
     # 2 - contar o # de horas
     # de mudanças de fuso-horário
-    tzCnt = pd.DataFrame(
-        {'TZ Count': df.groupby(
-            ['Season', 'Player', 'TZ Shift (hrs)']).size()}
-    ).sort_values(by=['Player', 'Season']).reset_index()
-    tzCnt['Total TZ Shifts (hrs)'] = tzCnt['TZ Shift (hrs)'].abs() * \
-        tzCnt['TZ Count']
-    tzCnt['Season'] = tzCnt['Season'].str[2:].replace('-', '/', regex=True)
+    tzCnt = extractTravelMetrics(
+        df, 'tz', cols=['TZ Shift (hrs)', 'Total TZ Shifts (hrs)'])
 
-    playerTravelData = {}
-    for season, player in set(zip(distanceCnt['Season'], distanceCnt['Player'])):
-        distanceFilter = distanceCnt[
-            (distanceCnt['Player'] == player) &
-            (distanceCnt['Season'] == season)
-        ]
-        tzFilter = tzCnt[
-            (tzCnt['Player'] == player) &
-            (tzCnt['Season'] == season)
-        ]
-        playerTravelData[player] = (
-            season,
-            distanceFilter['Total Distance Travelled (km)'].sum(),
-            tzFilter['Total TZ Shifts (hrs)'].sum()
-        )
-    df = pd.DataFrame.from_dict(playerTravelData).T.reset_index().rename(
-        columns={
-            'index': 'Player',
-            0: 'Season',
-            1: 'Dist Travelled (km) (Season)',
-            2: 'TZ Shifts (Season)'
-        }
+    exportData(
+        pd.merge(distanceCnt, tzCnt, how='outer', on=['Player', 'Season']),
+        processedDataDir,
+        'travels.csv'
     )
-    exportData(df, processedDataDir, 'travels.csv')
+
+
+def getInjuriesPerYear(injuriesDataset, mainDataset):
+    """
+    Appends # of injuries per year
+    per player to main dataset.
+    """
+    injuryCnt = pd.DataFrame(
+        {'# of Injuries (Season)': injuriesDataset.groupby(
+            ['Season', 'Player']).size()}
+    ).sort_values(by=['Player', 'Season']).reset_index()
+    return concatStats([mainDataset, injuryCnt], ['Player', 'Season'])
+
+
+def getRestsPerYear(injuriesDataset, mainDataset):
+    restFilter = np.where(
+        (findInNotes(injuriesDataset['Notes'], 'rest') == True))[0]
+    rests = injuriesDataset.iloc[restFilter]
+    restCnt = pd.DataFrame(
+        {'# of Games Rested (Season)': rests.groupby(
+            ['Season', 'Player']).size()}
+    ).sort_values(by=['Player', 'Season']).reset_index()
+    print(concatStats([mainDataset, restCnt], ['Player', 'Season']))

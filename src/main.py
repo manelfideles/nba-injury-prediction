@@ -14,7 +14,7 @@ from tests import *
 # -- globals
 seasons = [
     '1314', '1415', '1516', '1617',
-    '1718', '1819', '1920', '2021'
+    '1718', '1819', '1920'
 ]
 
 # (stat, [columns_to_exclude])
@@ -34,7 +34,7 @@ stats_eda = True
 # ----------
 
 
-# -- Dataset generation
+# -- Dataset generation and loading
 # 'injuries.csv'
 if not path.isfile(path.join(processedDataDir, 'injuries.csv')):
     exportData(
@@ -45,26 +45,31 @@ if not path.isfile(path.join(processedDataDir, 'injuries.csv')):
         'injuries.csv'
     )
 
-# 'travels.csv'
-if not path.isfile(path.join(processedDataDir, 'travels.csv')):
-    exportData(
-        processTravelData(
-            sanitizeTravelMetrics(rawDataDir, 'travel_metrics.csv')
-        ),
-        processedDataDir,
-        'travels.csv'
-    )
 
 # 'stats.csv'
-if len(listdir(processedDataDir)) <= len(stats) + 1:
+if len(listdir(processedDataDir)) <= len(stats) + 2:
     # generate player tracking datasets
     outputFullStats(stats, seasons)
     # import somewhat pre-processed player tracking data
     drives = importData(processedDataDir, 'drives.csv')
-    fga = importData(processedDataDir, 'fga.csv')
+    fga = importData(processedDataDir, 'fga.csv').drop(columns=['Age'])
     rebounds = importData(processedDataDir, 'rebounds.csv')
     speed_distance = importData(processedDataDir, 'speed&distance.csv')
-    body_metrics = getBodyMetrics('body_metrics.csv', rawDataDir)
+
+    # eliminate Tyler Ulis
+    drives = drives.drop(np.where(drives['Player'] == 'Tyler Ulis')[0], axis=0)
+    fga = fga.drop(np.where(fga['Player'] == 'Tyler Ulis')[0], axis=0)
+    rebounds = rebounds.drop(
+        np.where(rebounds['Player'] == 'Tyler Ulis')[0], axis=0)
+    speed_distance = speed_distance.drop(
+        np.where(speed_distance['Player'] == 'Tyler Ulis')[0], axis=0)
+
+    getBodyMetrics('body_metrics.csv', rawDataDir)
+    body_metrics = importData(processedDataDir, 'bodymet.csv')
+    body_metrics = body_metrics.drop(
+        np.where(body_metrics['Player'] == 'Tyler Ulis')[0], axis=0)
+    commonData = drives['Player'], drives['Team'], drives['GP'], drives['MIN'], drives['Season']
+    commonData = concatStats(commonData)
 
     # generate final dataset with all relevant tracking data
     statsToCompute = [
@@ -73,22 +78,29 @@ if len(listdir(processedDataDir)) <= len(stats) + 1:
         'Dist', 'Dist. Off', 'Dist. Def'
     ]
     cs = concatStats(
-        [drives, fga, rebounds, speed_distance],
-        ['Season', 'Player', 'Team', 'GP', 'MIN']
+        [drives, fga, speed_distance, rebounds],
+        ignore=['Player', 'Team', 'GP', 'MIN', 'Season']
     )
-    cs2 = concatStats(
-        [cs, body_metrics],
-        ['Season', 'Player', 'Team', 'Age']
-    )
+    cs2 = concatStats([commonData, cs, body_metrics.drop(
+        columns=['Player', 'Team', 'Season'])])
     st = computeStatTotals(cs2, statsToCompute)
     st['BMI'] = calculatePlayerBMI(st['Height'], st['Weight'])
-    exportData(st, processedDataDir, 'stats.csv')
+    exportData(st.sort_values(
+        by=['Season', 'Player']), processedDataDir, 'stats.csv')
 
+# 'travels.csv'
+if not path.isfile(path.join(processedDataDir, 'travels.csv')):
+    processTravelData(
+        sanitizeTravelMetrics(rawDataDir, 'travel_metrics.csv')
+    )
 # ---------------------
 
 # Exploratory Data Analysis on the injuries dataset
-injuries = importData(processedDataDir, 'injuries.csv')
 if injuries_eda:
+    injuries = importData(processedDataDir, 'injuries.csv')
+    # eliminate Tyler Ulis entries
+    tylerulis = np.where(injuries['Player'] == 'Tyler Ulis')[0]
+    injuries = injuries.drop(tylerulis, axis=0)
     # 1 -- Teams with the most injuries
     # !! - Limited to the top 'limit' most injured teams
     topInjuriesTeams = seriesToFrame(
@@ -246,9 +258,20 @@ if injuries_eda:
         dim=1
     )
 
-
 statsDataset = importData(processedDataDir, 'stats.csv')
+print(statsDataset)
+
 travelDataset = importData(processedDataDir, 'travels.csv')
+
+print(travelDataset)
+c = 0
+for p1, p2 in zip(statsDataset['Player'], travelDataset['Player']):
+    if p1 != p2:
+        print(c, p1, p2)
+        break
+    else:
+        c += 1
+
 
 # para cada jogador:
 #   - contar o # de injuries que teve naquela epoca
