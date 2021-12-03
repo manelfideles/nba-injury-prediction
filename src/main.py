@@ -6,6 +6,7 @@ the predictor.
 @ Alexandre Cortez Santos (???)
 """
 
+from os import remove
 from dependencies import *
 from utils import *
 from tests import *
@@ -98,9 +99,10 @@ if not path.isfile(path.join(processedDataDir, 'travels.csv')):
 # Exploratory Data Analysis on the injuries dataset
 if injuries_eda:
     injuries = importData(processedDataDir, 'injuries.csv')
-    # eliminate Tyler Ulis entries
+    # eliminate Tyler Ulis entries because he has NaN entries
     tylerulis = np.where(injuries['Player'] == 'Tyler Ulis')[0]
     injuries = injuries.drop(tylerulis, axis=0)
+
     # 1 -- Teams with the most injuries
     # !! - Limited to the top 'limit' most injured teams
     topInjuriesTeams = seriesToFrame(
@@ -258,19 +260,24 @@ if injuries_eda:
         dim=1
     )
 
-statsDataset = importData(processedDataDir, 'stats.csv')
-print(statsDataset)
+if not path.isfile(path.join(processedDataDir, 'mainDataset.csv')):
+    injuriesDataset = importData(processedDataDir, 'injuries.csv')
+    injuriesDataset['Player'] = removeDotsInPlayerName(
+        injuriesDataset['Player'])
+    statsDataset = importData(processedDataDir, 'stats.csv')
+    statsDataset['Player'] = removeDotsInPlayerName(
+        statsDataset['Player'])
+    travelDataset = importData(processedDataDir, 'travels.csv')
+    travelDataset['Player'] = removeDotsInPlayerName(travelDataset['Player'])
+    mainDataset = statsDataset
+    mainDataset['Total Distance Travelled (km)'] = travelDataset['Total Distance Travelled (km)']
+    mainDataset['Total TZ Shifts (hrs)'] = travelDataset['Total TZ Shifts (hrs)']
 
-travelDataset = importData(processedDataDir, 'travels.csv')
-
-print(travelDataset)
-c = 0
-for p1, p2 in zip(statsDataset['Player'], travelDataset['Player']):
-    if p1 != p2:
-        print(c, p1, p2)
-        break
-    else:
-        c += 1
+    # print(mainDataset)
+    restFilter = np.where(
+        (findInNotes(injuriesDataset['Notes'], 'rest') == True))[0]
+    mainDataset = getInjuriesPerYear(injuriesDataset, mainDataset, restFilter)
+    exportData(mainDataset, processedDataDir, 'mainDataset.csv')
 
 
 # para cada jogador:

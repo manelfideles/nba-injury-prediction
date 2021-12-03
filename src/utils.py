@@ -252,6 +252,10 @@ def splitInjuriesIntoSeasons(df, seasonDates):
     return pd.concat(allSeasonsDfs).drop(columns=['Date']).reset_index(drop=True)
 
 
+def removeDotsInPlayerName(df):
+    return df.str.replace('.', '')
+
+
 def preprocessInjuries(df, seasonDates=seasonDates):
     """
     Removes players that returned from injury.
@@ -275,6 +279,9 @@ def preprocessInjuries(df, seasonDates=seasonDates):
     # pq só temos info acerca das outras stats
     # a partir do inicio dessa época
     df = splitInjuriesIntoSeasons(df, seasonDates)
+
+    # remove dots in 'Player' col
+    df['Player'] = removeDotsInName(df)
 
     return df
     # pass
@@ -413,8 +420,12 @@ def extractTravelMetrics(df, met, cols):
     # perform necessary changes to dataset
     if met == 'distance':
         cnt[cols[1]] = calcDistanceMetrics(cnt)
-    else:
+    elif met == 'tz':
         cnt[cols[1]] = calcTzMetrics(cnt)
+    elif met == 'inj':
+        pass
+    else:
+        pass
     cnt['Season'] = cnt['Season'].str[2:].replace(
         '-', '/', regex=True)
 
@@ -428,48 +439,6 @@ def extractTravelMetrics(df, met, cols):
         .sort_values(by=['Season', 'Player']) \
         .reset_index(drop=True)
     return cnt
-
-
-def getDistanceTravelledData(df):
-    distanceCnt = pd.DataFrame(
-        {'Dist Count': df.groupby(
-            ['Player', 'Season', 'Distance Travelled']).size()}
-    ).sort_values(by=['Season', 'Player']).reset_index()
-
-    distanceCnt['Total Distance Travelled (km)'] = milesToKm(distanceCnt['Distance Travelled']) * \
-        distanceCnt['Dist Count']
-    distanceCnt['Season'] = distanceCnt['Season'].str[2:].replace(
-        '-', '/', regex=True)
-    distanceCnt = distanceCnt.drop(
-        columns=['Distance Travelled', 'Dist Count'])
-    distanceCnt = distanceCnt \
-        .groupby(['Player', 'Season'])['Total Distance Travelled (km)'] \
-        .sum() \
-        .reset_index()
-    distanceCnt = distanceCnt.sort_values(
-        by=['Season', 'Player']).reset_index(drop=True)
-    return distanceCnt
-
-
-def getTzData(df):
-    tzCnt = pd.DataFrame(
-        {'TZ Count': df.groupby(
-            ['Player', 'Season', 'TZ Shift (hrs)']).size()}
-    ).sort_values(by=['Season', 'Player']).reset_index()
-
-    tzCnt['Total TZ Shifts (hrs)'] = tzCnt['TZ Shift (hrs)'].abs() \
-        * tzCnt['TZ Count']
-
-    tzCnt['Season'] = tzCnt['Season'].str[2:].replace('-', '/', regex=True)
-    tzCnt = tzCnt.drop(
-        columns=['TZ Shift (hrs)', 'TZ Count'])
-    tzCnt = tzCnt \
-        .groupby(['Player', 'Season'])['Total TZ Shifts (hrs)'] \
-        .sum() \
-        .reset_index()
-    tzCnt = tzCnt.sort_values(
-        by=['Season', 'Player']).reset_index(drop=True)
-    return tzCnt
 
 
 def processTravelData(df):
@@ -490,24 +459,37 @@ def processTravelData(df):
     )
 
 
-def getInjuriesPerYear(injuriesDataset, mainDataset):
-    """
-    Appends # of injuries per year
-    per player to main dataset.
-    """
-    injuryCnt = pd.DataFrame(
+def getInjuriesPerYear(injuriesDataset, mainDataset, restFilter):
+    df = pd.DataFrame(
         {'# of Injuries (Season)': injuriesDataset.groupby(
-            ['Season', 'Player']).size()}
-    ).sort_values(by=['Player', 'Season']).reset_index()
-    return concatStats([mainDataset, injuryCnt], ['Player', 'Season'])
+            ['Player', 'Season']).size()}
+    ).sort_values(by=['Season', 'Player']).reset_index()
+
+    mainDataset['# of Injuries (Season)'] = 0
+    for player, season, injcnt in zip(df.Player, df.Season, df['# of Injuries (Season)']):
+        mainDataset.loc[
+            (mainDataset.Player == player.strip()) &
+            (mainDataset.Season == season),
+            '# of Injuries (Season)'] = injcnt
+    mainDataset['# of Injuries (Season)'] -= getRestsPerYear(
+        injuriesDataset, restFilter, mainDataset)['# of Rests (Season)']
+    return mainDataset
 
 
-def getRestsPerYear(injuriesDataset, mainDataset):
-    restFilter = np.where(
-        (findInNotes(injuriesDataset['Notes'], 'rest') == True))[0]
-    rests = injuriesDataset.iloc[restFilter]
-    restCnt = pd.DataFrame(
-        {'# of Games Rested (Season)': rests.groupby(
-            ['Season', 'Player']).size()}
-    ).sort_values(by=['Player', 'Season']).reset_index()
-    print(concatStats([mainDataset, restCnt], ['Player', 'Season']))
+def getRestsPerYear(injuriesDataset, restFilter, mainDataset):
+    """
+    Rests per year per player
+    """
+    restPlayers = injuriesDataset.iloc[restFilter]
+    df = pd.DataFrame(
+        {'# of Rests (Season)': restPlayers.groupby(
+            ['Player', 'Season']).size()}
+    ).sort_values(by=['Season', 'Player']).reset_index()
+
+    mainDataset['# of Rests (Season)'] = 0
+    for player, season, rcnt in zip(df.Player, df.Season, df['# of Rests (Season)']):
+        mainDataset.loc[
+            (mainDataset.Player == player.strip()) &
+            (mainDataset.Season == season),
+            '# of Rests (Season)'] = rcnt
+    return mainDataset
