@@ -46,6 +46,8 @@ seasonDates = {
 
 # --------------
 
+# Dataset-generation util functions
+
 
 def importData(filedir, filename):
     """
@@ -348,37 +350,22 @@ def zscore(df, k):
     return df[zs < k], df[zs >= k]
 
 
-def zcr(df):
-    return ((df[:-1] * df[1:]) < 0).sum()
+def getStatsAllSeasons(df):
+    sf = {}
+    for col in df.columns:
+        if col not in ['Player', 'Team', 'Season']:
+            sf[col] = getStatisticalFeatures(df[col])
+    return pd.DataFrame.from_dict(sf)
 
 
-def getStatsAllSeasons(df, seasons):
-    cols = list(
-        set(df.columns.values.tolist()) -
-        set(['Player', 'Team', 'Season', 'Age'])
-    )
-    seasonStats = {}
-    for season in seasons:
-        s = insertChar(season, ind=2, sep='/')
-        seasonFilter = np.where(df['Season'] == s)[0]
-        for i in range(len(cols)):
-            seasonStats[f'{s}-{cols[i]}'] = getStatsBySeason(
-                df,
-                seasonFilter,
-                list(df.columns.values).index(cols[i]))
-    return pd.DataFrame.from_dict(seasonStats, orient='index')
-
-
-def getStatsBySeason(df, seasonFilter, colInd):
-    seasonDf = normalize(df.iloc[seasonFilter, colInd])
+def getStatisticalFeatures(df):
     return {
-        'mean': mean(seasonDf),
-        'median': median(seasonDf),
-        'variance': variance(seasonDf),
-        'skewness': skewness(seasonDf),
-        'kurtosis': kurtosis(seasonDf),
-        'iqr': iqr(seasonDf),
-        'zcr': zcr(seasonDf)
+        'mean': mean(df),
+        'median': median(df),
+        'variance': variance(df),
+        'skewness': skewness(df),
+        'kurtosis': kurtosis(df),
+        'iqr': iqr(df)
     }
 
 
@@ -461,14 +448,14 @@ def getInjuriesPerYear(injuriesDataset, mainDataset, restFilter):
             ['Player', 'Season']).size()}
     ).sort_values(by=['Season', 'Player']).reset_index()
 
+    mainDataset = getRestsPerYear(injuriesDataset, restFilter, mainDataset)
     mainDataset['# of Injuries (Season)'] = 0
     for player, season, injcnt in zip(df.Player, df.Season, df['# of Injuries (Season)']):
         mainDataset.loc[
             (mainDataset.Player == player.strip()) &
             (mainDataset.Season == season),
             '# of Injuries (Season)'] = injcnt
-    mainDataset['# of Injuries (Season)'] -= getRestsPerYear(
-        injuriesDataset, restFilter, mainDataset)['# of Rests (Season)']
+    mainDataset['# of Injuries (Season)'] -= mainDataset['# of Rests (Season)']
     return mainDataset
 
 
@@ -489,3 +476,18 @@ def getRestsPerYear(injuriesDataset, restFilter, mainDataset):
             (mainDataset.Season == season),
             '# of Rests (Season)'] = rcnt
     return mainDataset
+
+
+# ---------------------------------
+# Feature Selection
+
+def selectFeatures(data, target, n_feats=20):
+    """
+    Feature Selection for
+    numerical input and numerical output.
+    https://machinelearningmastery.com/feature-selection-with-real-and-categorical-data/.
+    This method uses Pearson's correlation coefficient method 
+    to select the most relevant features. 'k' is the # of features to select.
+    """
+    fs = SelectKBest(score_func=f_regression, k=n_feats)
+    return pd.DataFrame(fs.fit_transform(data, target), columns=data.columns[fs.get_support(indices=True)])

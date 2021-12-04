@@ -11,5 +11,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from scipy.stats import linregress
+from scipy.stats import spearmanr
 from os import path, listdir
 from functools import reduce
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import f_regression

@@ -272,11 +272,14 @@ if not path.isfile(path.join(processedDataDir, 'mainDataset.csv')):
     mainDataset['Total Distance Travelled (km)'] = travelDataset['Total Distance Travelled (km)']
     mainDataset['Total TZ Shifts (hrs)'] = travelDataset['Total TZ Shifts (hrs)']
 
-    # print(mainDataset)
     restFilter = np.where(
         (findInNotes(injuriesDataset['Notes'], 'rest') == True))[0]
     mainDataset = getInjuriesPerYear(injuriesDataset, mainDataset, restFilter)
-    exportData(mainDataset, processedDataDir, 'mainDataset.csv')
 
+    # normalize dataset
+    for col in mainDataset.columns:
+        if col not in ['Player', 'Team', 'Season', '# of Injuries (Season)']:
+            mainDataset[col] = normalize(mainDataset[col])
+    exportData(mainDataset, processedDataDir, 'mainDataset.csv')
 
 print('Done')
