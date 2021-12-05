@@ -512,6 +512,8 @@ def getModel(model):
         return DecisionTreeRegressor()
     elif model == 'forest':
         return RandomForestRegressor()
+    elif model == 'nn':
+        return MLPClassifier()
 
 
 def varyFeatureNumber(data, target, modelname, tsize):
