@@ -7,7 +7,6 @@ and results are here.
 @ Alexandre Cortez Santos (???)
 """
 
-from sklearn.utils.extmath import fast_logdet
 from dependencies import *
 from utils import *
 from tests import *
@@ -22,20 +21,43 @@ data, target = mainDataset.drop(columns={
     'Season',
     '# of Injuries (Season)'}), mainDataset['# of Injuries (Season)']
 
+# No-Injury predictor
+test_0inj = pd.DataFrame(0, index=np.arange(
+    len(target)), columns=['# of Injuries (Season)'])
+
 # Feature Selection using Pearson's corrcoeff
-print(f'Dataset shape before feature selection: {mainDataset.shape}')
-print(f'Dataset columns before feature selection: {mainDataset.columns}')
+train, test = varyFeatureNumber(data, target, 'linreg', 0.4)
 
-# @TODO - experimentar diferentes valores e ver como a previsao muda
-data_selected = selectFeatures(data, target, n_feats=24)
-print(f'Dataset shape *after* feature selection: {data_selected.shape}')
-print(f'Dataset columns before feature selection: {data_selected.columns}')
+# Linear Regression
+plotMultipleLineGraphs(
+    train,
+    title='[LR] # of Features vs MSE, MAE, RMSE, R^2 - Training set'
+)
+plotMultipleLineGraphs(
+    test,
+    title='[LR] # of Features vs MSE, MAE, RMSE, R^2 - Testing set'
+)
 
+# Decision Tree
+train, test = varyFeatureNumber(data, target, 'tree', 0.4)
+plotMultipleLineGraphs(
+    train,
+    title='[DTR] # of Features vs MSE, MAE, RMSE, R^2 - Training set'
+)
+plotMultipleLineGraphs(
+    test,
+    title='[DTR] # of Features vs MSE, MAE, RMSE, R^2 - Testing set'
+)
 
-# split
-
-# train - (Baseline) dummy Classi
-
-#
+# Random Forest
+train, test = varyFeatureNumber(data, target, 'forest', 0.4)
+plotMultipleLineGraphs(
+    train,
+    title='[RFR] # of Features vs MSE, MAE, RMSE, R^2 - Training set'
+)
+plotMultipleLineGraphs(
+    test,
+    title='[RFR] # of Features vs MSE, MAE, RMSE, R^2 - Testing set'
+)
 
 print('Done')

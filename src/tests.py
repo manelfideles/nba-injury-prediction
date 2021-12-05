@@ -8,6 +8,7 @@ executed on the data.
 """
 
 # from matplotlib.pyplot import legend
+from matplotlib.pyplot import legend
 from dependencies import *
 plt.rcParams['font.size'] = '7'
 
@@ -43,6 +44,17 @@ def plotLineGraph(data, axlabels, title=None):
         ax.annotate(txt, (data.iloc[i, 0], data.iloc[i, 1]))
     ax.set_xlabel(axlabels[0])
     ax.set_ylabel(axlabels[1])
+    if title:
+        plt.title(title)
+    plt.show()
+
+
+def plotMultipleLineGraphs(df, title=None):
+    _, ax = plt.subplots()
+    for i in range(len(df)):
+        line, = ax.plot(df.columns, df.iloc[i, :], '-o')
+        line.set_label(df.index[i])
+    ax.legend()
     if title:
         plt.title(title)
     plt.show()

@@ -11,6 +11,7 @@ the 'src' directory.
 @ Alexandre Cortez Santos (???)
 """
 
+from seaborn.regression import residplot
 from dependencies import *
 
 # -- globals
@@ -479,7 +480,7 @@ def getRestsPerYear(injuriesDataset, restFilter, mainDataset):
 
 
 # ---------------------------------
-# Feature Selection
+# Feature Selection, training and testing
 
 def selectFeatures(data, target, n_feats=20):
     """
@@ -491,3 +492,62 @@ def selectFeatures(data, target, n_feats=20):
     """
     fs = SelectKBest(score_func=f_regression, k=n_feats)
     return pd.DataFrame(fs.fit_transform(data, target), columns=data.columns[fs.get_support(indices=True)])
+
+
+def tt(data, target, testsize=0.3):
+    """
+    Wrapper function for train_test_split.
+    Returns 4 values:
+    - data_train and data_test; target_train and target_test.
+    Follows the 70%-30% rule-of-thumb for TT
+    by default.
+    """
+    return tts(data, target, test_size=testsize)
+
+
+def getModel(model):
+    if model == 'linreg':
+        return LinearRegression()
+    elif model == 'tree':
+        return DecisionTreeRegressor()
+    elif model == 'forest':
+        return RandomForestRegressor()
+
+
+def varyFeatureNumber(data, target, modelname, tsize):
+    train = {}
+    test = {}
+    for i in range(1, len(data.columns) + 1):
+        # feature selection
+        selected = selectFeatures(data, target, n_feats=i)
+
+        # data splitting
+        data_train, data_test, target_train, target_test = tt(
+            selected, target, testsize=tsize
+        )
+
+        # training
+        model = getModel(modelname).fit(data_train, target_train)
+        pred_target_train = model.predict(data_train)
+        pred_target_test = model.predict(data_test)
+
+        # storing of evaluation metrics
+        mse = mean_squared_error(target_train, pred_target_train)
+        mae = mean_absolute_error(target_train, pred_target_train)
+        r2s = r2_score(target_train, pred_target_train)
+        # residuals = target_train.reset_index(
+        #    drop=True) - pd.DataFrame(pred_target_train).T
+        train[i] = (mse, mae, math.sqrt(mse), r2s)
+
+        mse = mean_squared_error(target_test, pred_target_test)
+        mae = mean_absolute_error(target_test, pred_target_test)
+        r2s = r2_score(target_test, pred_target_test)
+        # residuals = target_test.reset_index(
+        #    drop=True) - pd.DataFrame(pred_target_test).T
+        test[i] = (mse, mae, math.sqrt(mse), r2s)
+
+    train = pd.DataFrame.from_dict(train) \
+        .rename(index={0: 'mse', 1: 'mae', 2: 'rmse', 3: 'r2s', 4: 'residuals'})
+    test = pd.DataFrame.from_dict(test) \
+        .rename(index={0: 'mse', 1: 'mae', 2: 'rmse', 3: 'r2s', 4: 'residuals'})
+    return train, test
