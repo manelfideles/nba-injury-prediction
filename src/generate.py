@@ -278,7 +278,7 @@ if not path.isfile(path.join(processedDataDir, 'mainDataset.csv')):
 
     # normalize dataset
     for col in mainDataset.columns:
-        if col not in ['Player', 'Team', 'Season', '# of Injuries (Season)']:
+        if col not in ['Player', 'Team', 'Season']:
             mainDataset[col] = normalize(mainDataset[col])
     exportData(mainDataset, processedDataDir, 'mainDataset.csv')
 

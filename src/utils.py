@@ -11,8 +11,12 @@ the 'src' directory.
 @ Alexandre Cortez Santos (???)
 """
 
+from pandas.core.frame import DataFrame
+from scipy.optimize.zeros import results_c
 from seaborn.regression import residplot
+from sklearn.utils import shuffle
 from dependencies import *
+from tests import plotMultiple
 
 # -- globals
 # -- these can be accessed from
@@ -21,6 +25,7 @@ from dependencies import *
 
 rawDataDir = path.realpath('./assets/raw')
 processedDataDir = path.realpath('./assets/processed')
+debug = False
 
 teamTricodes = {
     'Hawks': 'ATL', 'Nets': 'BKN', 'Celtics': 'BOS',
@@ -487,7 +492,7 @@ def selectFeatures(data, target, n_feats=20):
     Feature Selection for
     numerical input and numerical output.
     https://machinelearningmastery.com/feature-selection-with-real-and-categorical-data/.
-    This method uses Pearson's correlation coefficient method 
+    This method uses Pearson's correlation coefficient method
     to select the most relevant features. 'k' is the # of features to select.
     """
     fs = SelectKBest(score_func=f_regression, k=n_feats)
@@ -505,21 +510,26 @@ def tt(data, target, testsize=0.3):
     return tts(data, target, test_size=testsize)
 
 
-def getModel(model):
+def getModel(model, n_features):
     if model == 'linreg':
         return LinearRegression()
     elif model == 'tree':
-        return DecisionTreeRegressor()
+        return DecisionTreeRegressor(criterion='friedman_mse', max_features=n_features)
     elif model == 'forest':
-        return RandomForestRegressor()
-    elif model == 'nn':
+        return RandomForestRegressor(n_estimators=20, criterion='mae', max_features=n_features)
+    elif model == 'lasso':
+        return Lasso()
+    elif model == 'mlp':
         return MLPClassifier()
+    elif model == 'kn':
+        return KNeighborsRegressor()
+    elif model == 'dummy':
+        return DummyRegressor()
 
 
 def varyFeatureNumber(data, target, modelname, tsize):
-    train = {}
     test = {}
-    for i in range(1, len(data.columns) + 1):
+    for i in range(len(data.columns), 1, -1):
         # feature selection
         selected = selectFeatures(data, target, n_feats=i)
 
@@ -529,27 +539,35 @@ def varyFeatureNumber(data, target, modelname, tsize):
         )
 
         # training
-        model = getModel(modelname).fit(data_train, target_train)
-        pred_target_train = model.predict(data_train)
+        model = getModel(modelname, i).fit(data_train, target_train)
         pred_target_test = model.predict(data_test)
 
+        # visualize observed vs predicted
+        predtargtest = pd.DataFrame(pred_target_test)
+        target_test = target_test.reset_index(drop=True).T
+        if debug:
+            plotMultiple(
+                pd.concat([predtargtest, target_test], axis=1).T.rename(
+                    index={0: 'predicted value',
+                           '# of Injuries (Season)': 'real value'}
+                ),
+                'scatter',
+                title=f'[{modelname.capitalize()}] Predicted vs Real - Iter #{i}'
+            )
+
         # storing of evaluation metrics
-        mse = mean_squared_error(target_train, pred_target_train)
-        mae = mean_absolute_error(target_train, pred_target_train)
-        r2s = r2_score(target_train, pred_target_train)
-        # residuals = target_train.reset_index(
-        #    drop=True) - pd.DataFrame(pred_target_train).T
-        train[i] = (mse, mae, math.sqrt(mse), r2s)
-
         mse = mean_squared_error(target_test, pred_target_test)
-        mae = mean_absolute_error(target_test, pred_target_test)
-        r2s = r2_score(target_test, pred_target_test)
-        # residuals = target_test.reset_index(
-        #    drop=True) - pd.DataFrame(pred_target_test).T
-        test[i] = (mse, mae, math.sqrt(mse), r2s)
+        test[i] = (
+            mse,  # mean squared error
+            mean_absolute_error(target_test, pred_target_test),
+            math.sqrt(mse),  # rmse
+            r2_score(target_test, pred_target_test),  # r-squared
+            (target_test - pred_target_test).mean(),  # mean residuals
+        )
 
-    train = pd.DataFrame.from_dict(train) \
-        .rename(index={0: 'mse', 1: 'mae', 2: 'rmse', 3: 'r2s', 4: 'residuals'})
-    test = pd.DataFrame.from_dict(test) \
-        .rename(index={0: 'mse', 1: 'mae', 2: 'rmse', 3: 'r2s', 4: 'residuals'})
-    return train, test
+    # https://machinelearningmastery.com/metrics-evaluate-machine-learning-algorithms-python/
+    return pd.DataFrame.from_dict(test) \
+        .rename(index={
+            0: 'mse', 1: 'mae', 2: 'rmse',
+            3: 'r-squared', 4: 'avg residual'
+        })

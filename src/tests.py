@@ -49,10 +49,13 @@ def plotLineGraph(data, axlabels, title=None):
     plt.show()
 
 
-def plotMultipleLineGraphs(df, title=None):
+def plotMultiple(df, graphtype='line', title=None):
     _, ax = plt.subplots()
     for i in range(len(df)):
-        line, = ax.plot(df.columns, df.iloc[i, :], '-o')
+        if graphtype == 'line':
+            line, = ax.plot(df.columns, df.iloc[i, :], '-o')
+        elif graphtype == 'scatter':
+            line, = ax.plot(df.columns, df.iloc[i, :], 'o')
         line.set_label(df.index[i])
     ax.legend()
     if title:
