@@ -13,7 +13,7 @@ from tests import *
 
 # globals --
 testsize = 0.2
-ignore_ = True
+ignore_ = False
 
 
 # Dataset EDA
@@ -26,15 +26,20 @@ data, target = mainDataset.drop(columns={
     'Season',
     '# of Injuries (Season)'}), mainDataset['# of Injuries (Season)']
 
+
 # No-Injury predictor
 test_0inj = pd.DataFrame(0, index=np.arange(
     len(target)), columns=['# of Injuries (Season)'])
 
 
 # Feature Selection using Pearson's corrcoeff
+# Poly
+# polyReg(data.iloc[0:100], target.iloc[0:100], 5)
+
 if not ignore_:
     # Dummy
-    evm = varyFeatureNumber(data, target, 'dummy', testsize)
+    evm = varyFeatureNumber(
+        data.iloc[:50], target.iloc[:50], 'dummy', testsize)
     plotMultiple(
         evm,
         graphtype='line',
@@ -42,7 +47,8 @@ if not ignore_:
     )
 
     # Linear Regression
-    evm = varyFeatureNumber(data, target, 'linreg', testsize)
+    evm = varyFeatureNumber(
+        data.iloc[:25], target.iloc[:25], 'linreg', testsize)
     plotMultiple(
         evm,
         graphtype='line',
@@ -50,7 +56,8 @@ if not ignore_:
     )
 
     # Lasso
-    evm = varyFeatureNumber(data, target, 'lasso', testsize)
+    evm = varyFeatureNumber(
+        data.iloc[:25], target.iloc[:25], 'lasso', testsize)
     plotMultiple(
         evm,
         graphtype='line',
@@ -81,22 +88,38 @@ if not ignore_:
         title='[RFR] # of Features vs MSE, MAE, RMSE, R^2 - Testing set'
     )
 
+    exit()
 
-# @TODO - Multi-layer Perceptron
-"""
-evm = varyFeatureNumber(data, target, 'mlp', testsize)
-plotMultiple(
-    evm,
-    graphtype='line',
-    title='[MLP] # of Features vs MSE, MAE, RMSE, R^2 - Testing set'
-)
-"""
+    # Poly
+    evm = varyFeatureNumber(data, target, 'poly', testsize)
+    plotMultiple(
+        evm,
+        graphtype='line',
+        title='[Poly] # of Features vs MSE, MAE, RMSE, R^2 - Testing set'
+    )
 
-# isto esta uma ganda merda
+    """ # Ridge
+    evm = varyFeatureNumber(data, target, 'ridge', testsize)
+    plotMultiple(
+        evm,
+        graphtype='line',
+        title='[Ridge] # of Features vs MSE, MAE, RMSE, R^2 - Testing set'
+    ) """
+
+    # @TODO - Multi-layer Perceptron
+    evm = varyFeatureNumber(data, target, 'mlp', testsize)
+    plotMultiple(
+        evm,
+        graphtype='line',
+        title='[MLP] # of Features vs MSE, MAE, RMSE, R^2 - Testing set'
+    )
+
+
+# maus resultados :(
 # oqeq pode estar a acontecer?
-# - as features selecionadas não são bacanas
+# - as features selecionadas não são indicativas do numero de lesoes
 #       * experimentar outro metodo de feature selection:
 #         https://machinelearningmastery.com/calculate-feature-importance-with-python/
-# - o dataset é uma merda
+# - o dataset que eu fiz está mal construido
 
 print('Done')

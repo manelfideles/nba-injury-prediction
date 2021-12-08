@@ -6,6 +6,7 @@ components are generated.
 @ Alexandre Cortez Santos (???)
 """
 
+from numpy.core.defchararray import split
 from dependencies import *
 from utils import *
 from tests import *
@@ -14,23 +15,31 @@ from tests import *
 # -- globals
 seasons = [
     '1314', '1415', '1516', '1617',
-    '1718', '1819', '1920'
+    '1718', '1819'
 ]
 
-# (stat, [columns_to_exclude])
-stats = [
-    ('drives', ['W', 'L', 'FGM', 'FGA', 'FG%', 'FTM', 'FTA', 'FT%', 'PTS',
-                'PTS%', 'PASS', 'PASS%', 'AST', 'AST%', 'TO', 'TOV%', 'PF', 'PF%']),
-    ('fga', ['W', 'L', 'FGM', 'FG%', '3PM', '3P%', 'PTS', 'FTM', 'FTA', 'FT%', 'OREB', 'DREB', 'REB',
-             'AST', 'TOV', 'STL', 'BLK', 'PF', 'FP', 'DD2', 'TD3', '+/-']),
-    ('rebounds', ['W', 'L', 'ContestedREB%',
-                  'REBChance%', 'AdjustedREB Chance%']),
-    ('speed&distance', ['W', 'L', 'Dist. Feet']),
-]
+months = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr']
+monthNumbers = dict(zip([10, 11, 12, 1, 2, 3, 4], [1, 2, 3, 4, 5, 6, 7]))
+monthNumbersRev = dict(zip([1, 2, 3, 4, 5, 6, 7], [10, 11, 12, 1, 2, 3, 4]))
+
+
+# (stat, [columns_to_keep])
+stats = {
+    'drives': ['Player', 'Team', 'GP', 'MIN', 'DRIVES'],
+    'fga': ['Player', 'Team', 'GP', 'MIN', 'Age',  'FGA', '3PA'],
+    'reb': ['Player', 'Team', 'GP', 'MIN', 'REB',
+            'ContestedREB', 'REBChances', 'AVG REBDistance'],
+    'sd': [
+        'Player', 'Team', 'GP',
+        'MIN', 'Dist. Miles', 'Dist. Miles Off',
+        'Dist. Miles Def', 'Avg Speed', 'Avg Speed Off',
+        'Avg Speed Def'
+    ]
+}
 
 debug = False
 injuries_eda = False
-stats_eda = True
+stats_eda = False
 # ----------
 
 
@@ -44,7 +53,6 @@ if not path.isfile(path.join(processedDataDir, 'injuries.csv')):
         processedDataDir,
         'injuries.csv'
     )
-
 
 # 'stats.csv'
 if len(listdir(processedDataDir)) <= len(stats) + 2:
@@ -282,4 +290,48 @@ if not path.isfile(path.join(processedDataDir, 'mainDataset.csv')):
             mainDataset[col] = normalize(mainDataset[col])
     exportData(mainDataset, processedDataDir, 'mainDataset.csv')
 
+# map injuries to players
+
+# makeStatsDataset(seasons, monthNumbers, stats)
+
+"""
+injuries = importData(processedDataDir, 'injuries.csv')
+drives = importData(processedDataDir, 'monthly_drives.csv')
+fga = importData(processedDataDir, 'monthly_fga.csv')
+rebs = importData(processedDataDir, 'monthly_rebs.csv').rename(
+    columns={'AVG REBDistance': 'AVG REBDistance'})
+sd = importData(processedDataDir, 'monthly_sd.csv').rename(columns=dict(zip(
+    ['Dist. Miles', 'Dist. Miles Off', 'Dist. Miles Def',
+     'Avg Speed', 'Avg Speed Off', 'Avg Speed Def'],
+    ['Dist. Miles', 'Dist. Miles Off', 'Dist. Miles Def',
+     'Avg Speed', 'Avg Speed Off', 'Avg Speed Def'])))
+
+
+statsToCompute = [
+    'MIN', 'DRIVES', 'FGA', '3PA',
+    'REB', 'ContestedREB', 'REBChances',
+    'Dist. Miles', 'Dist. Miles Off', 'Dist. Miles Def'
+]
+commonData = drives.drop(columns={'DRIVES'})
+cs = concatStats([drives, fga, rebs, sd],
+                 ignore=commonData.columns.values.tolist())
+cs2 = concatStats([commonData, cs])
+st = computeStatTotals(concatStats([commonData, cs]), statsToCompute)
+dataset = concatInjury(st, injuries, monthNumbersRev)
+travels = sanitizeTravelMetrics(rawDataDir, 'travel_metrics.csv')
+dataset = concatTravels(dataset, travels, monthNumbersRev)
+exportData(dataset, processedDataDir, 'test.csv')
+
+getBodyMetrics('body_metrics.csv')
+"""
+# body_metrics = importData(processedDataDir, 'bodymet.csv')
+
+# import dataset and reorder cols
+dataset = importData(processedDataDir, 'test.csv')
+cols = dataset.columns.tolist()
+cols = ['Player', 'Team', 'Season', 'Month',
+        'Age', 'GP'] + cols[6:30] + cols[31:] + [cols[30]]
+dataset = dataset[cols]
+
+makeFeatureVectors(dataset, 3, 1)
 print('Done')

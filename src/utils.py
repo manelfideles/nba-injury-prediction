@@ -11,6 +11,7 @@ the 'src' directory.
 @ Alexandre Cortez Santos (???)
 """
 
+from numpy.core.arrayprint import printoptions
 from pandas.core.frame import DataFrame
 from scipy.optimize.zeros import results_c
 from seaborn.regression import residplot
@@ -184,14 +185,14 @@ def splitDate(df):
     return df
 
 
-def concatStats(dfs, ignore=None):
+def concatStats(dfs, ignore=None, axis=1):
     """
     Returns a single DataFrame with all the relevant NBA stats
     scraped from their website.
     """
     if ignore:
         dfs = [df.drop(columns=ignore) for df in dfs]
-    return pd.concat(dfs, join='outer', axis=1)
+    return pd.concat(dfs, join='outer', axis=axis)
 
 
 def getBodyMetrics(filename, dir=rawDataDir):
@@ -216,7 +217,7 @@ def getBodyMetrics(filename, dir=rawDataDir):
     # filter out non-relevant seasons
     seasonFilter = np.where(
         (df['Season'].str.split('-').str[0] >= '2013') &
-        (df['Season'].str.split('-').str[0] <= '2019')
+        (df['Season'].str.split('-').str[0] <= '2018')
     )
     df['Season'] = df['Season'].str[2:].replace('-', '/', regex=True)
     df = df.iloc[seasonFilter].reset_index(
@@ -376,10 +377,11 @@ def getStatisticalFeatures(df):
 
 
 def sanitizeTravelMetrics(dir, filename):
-    return importData(dir, filename)[[
+    df = importData(dir, filename)[[
         'Season',
         'Player',
         'Team',
+        'Date',
         'Distance',
         'Flight Time',
         'Shift (hrs)'
@@ -387,8 +389,17 @@ def sanitizeTravelMetrics(dir, filename):
         columns={
             'Distance': 'Distance Travelled',
             'Shift (hrs)': 'TZ Shift (hrs)'
-        }
-    )
+        })
+    df = splitDate(df).drop(['Date', 'Year', 'Day'], axis=1)
+    df['Season'] = df['Season'].str[2:].replace('-', '/', regex=True)
+    df['Month'] = df['Month'].astype(int)
+    df = setTeamId(df, teams=teamTricodes)
+    seasonFilter = np.where(
+        (df['Season'] == '18/19') &
+        (df['Month'] == 4)
+    )[0]
+    df = df.iloc[:seasonFilter[-1] + 1]
+    return df.sort_values(by=['Season', 'Month', 'Player'])
 
 
 def calcDistanceMetrics(df):
@@ -484,8 +495,162 @@ def getRestsPerYear(injuriesDataset, restFilter, mainDataset):
     return mainDataset
 
 
+def makeStatsDataset(seasons, monthNumbers, stats):
+    allstats = []
+    for stat in stats.keys():
+        stats_out = []
+        for season in seasons:
+            for monthname, monthnumber in monthNumbers.items():
+                data = importData(
+                    path.join(rawDataDir, stat, 'monthly'),
+                    f'{stat}_{monthname}_{season}.csv'
+                )
+                data.columns = data.columns.str.replace(
+                    ' ', '')
+                data = data.rename(
+                    columns={'PLAYER': 'Player', 'TEAM': 'Team', 'AGE': 'Age'})
+                data = data[stats[stat]]
+                data['Month'] = monthnumber
+                data['Season'] = insertChar(season)
+                data['Player'] = removeDotsInPlayerName(data['Player'])
+                stats_out.append(data)
+        stat_out = pd.concat(stats_out) \
+            .sort_values(by=['Season', 'Player']) \
+            .reset_index(drop=True)
+        allstats.append(stat_out)
+    exportData(allstats[0],
+               processedDataDir, 'monthly_drives.csv')
+    exportData(allstats[1],
+               processedDataDir, 'monthly_fga.csv')
+    exportData(allstats[2],
+               processedDataDir, 'monthly_rebs.csv')
+    exportData(allstats[3],
+               processedDataDir, 'monthly_sd.csv')
+
+
+def concatInjury(df, injdf, monthNumbersRev):
+    df['Injured'] = 0
+    for player, team, month, season in zip(df['Player'], df['Team'], df['Month'], df['Season']):
+        # print(player, team, month, season)
+        injfilter = np.where(
+            (injdf['Player'] == player) & (injdf['Team'] == team) &
+            (injdf['Month'] == monthNumbersRev[month]) &
+            (injdf['Season'] == season)
+        )[0]
+        if len(injfilter):
+            currentPlayer = np.where(
+                (df['Player'] == player) & (df['Team'] == team) &
+                (df['Month'] == month) & (
+                    df['Season'] == season)
+            )[0]
+            df.loc[currentPlayer, 'Injured'] = 1
+    return df
+
+
+def concatTravels(df, tdf, monthNumbersRev):
+    df['Distance Travelled-TOT'] = 0
+    df['Distance Travelled-PG'] = 0
+    df['TZ Shift-TOT'] = 0
+    df['TZ Shift-PG'] = 0
+    for player, team, month, season in zip(df['Player'], df['Team'], df['Month'], df['Season']):
+        distFilter = np.where(
+            (tdf['Player'] == player) & (tdf['Team'] == team) &
+            (tdf['Month'] == monthNumbersRev[month]) & (
+                tdf['Season'] == season)
+        )[0]
+        # print(player, team, f'{month}({monthNumbersRev[month]})', season, distFilter)
+        if len(distFilter):
+            currentPlayer = np.where(
+                (df['Player'] == player) & (df['Team'] == team) &
+                (df['Month'] == month) & (
+                    df['Season'] == season)
+            )[0]
+            df.loc[currentPlayer, 'Distance Travelled-TOT'] = tdf.iloc[
+                distFilter, -3
+            ].sum()
+            df.loc[currentPlayer, 'Distance Travelled-PG'] = tdf.iloc[
+                distFilter, -3
+            ].mean()
+            df.loc[currentPlayer, 'TZ Shift-TOT'] = tdf.iloc[
+                distFilter, -1
+            ].abs().sum()
+            df.loc[currentPlayer, 'TZ Shift-PG'] = tdf.iloc[
+                distFilter, -1
+            ].abs().mean()
+            # print(df.loc[currentPlayer, 'TZ Shift-PG'])
+    return df
+
+
+def flattenVec(observations, winsize, increment):
+    """
+    Flattens player observations into
+    ['winsize' * len(features)]-sized arrays.
+    Returns NaN-padded array if the number of
+    player observations is smaller than the window size.
+    """
+    # remove player, team, season
+    observations = [obs[3:] for obs in observations]
+    fv = None
+    if len(observations) < winsize:
+        fv = np.asarray(observations).reshape(-1)
+        return np.pad(
+            fv, (0, winsize * len(observations[0]) - len(fv)),
+            mode='constant', constant_values=np.nan
+        )
+    else:
+        fv = np.hstack((observations[:winsize]))
+        for i in range(1, (len(observations) - winsize) + 1, increment):
+            fv = np.vstack((fv, np.hstack((observations[i:i+winsize]))))
+    return fv
+
+
+def renameColsWithDupes(df):
+    """
+    Adds sufix (col name count) to duplicated col names,
+    i.e: Injured1, Injured2, Injured3 and reorders cols to
+    the format [Player, Season, ...]
+    """
+    identifier = df.columns.to_series().groupby(level=0).cumcount() + 1
+    df.columns = df.columns.astype(str) + '_' + identifier.astype(str)
+    return df[['Player_1', 'Season_1'] + df.columns.tolist()[2:-2]].rename(
+        columns={'Player_1': 'Player', 'Season_1': 'Season'}
+    )
+
+
+def makeFeatureVectors(df, winsize, increment, balance=True):
+    """
+    Returns feature vectors for a player,
+    given 'winsize' previous entries in the dataset.
+    'increment' controls the overlap of the sliding window.
+    If 'balance' is True, then data from each player is split
+    and distributed among the train and test sets.
+    If 'balance' is False, then the testing set will
+    contain unseen data, which can hamper the model's performance.
+    This argument is good for testing the generalizability of the model.
+    """
+    train, test = [], []
+
+    windows = []
+    for key, item in df.groupby(['Season', 'Player']):
+        fv = flattenVec(item.to_numpy(), winsize, increment)
+        print(key, fv.shape)
+        # player has more than one observation
+        if fv.shape != (len(df.columns.tolist()[3:] * winsize),):
+            out = pd.DataFrame(fv, columns=df.columns.tolist()[3:] * winsize)
+        else:
+            out = pd.DataFrame(
+                [fv.tolist()],
+                columns=df.columns.tolist()[3:] * winsize
+            )
+        out['Player'], out['Season'] = key[0], key[1]
+        windows += [renameColsWithDupes(out)]
+    windf = pd.concat(windows, axis=0)
+    print(windf)
+    return train, test
+
 # ---------------------------------
 # Feature Selection, training and testing
+
 
 def selectFeatures(data, target, n_feats=20):
     """
@@ -510,11 +675,11 @@ def tt(data, target, testsize=0.3):
     return tts(data, target, test_size=testsize)
 
 
-def getModel(model, n_features):
+def getModel(model, n_features, deg=5):
     if model == 'linreg':
         return LinearRegression()
     elif model == 'tree':
-        return DecisionTreeRegressor(criterion='friedman_mse', max_features=n_features)
+        return DecisionTreeRegressor()
     elif model == 'forest':
         return RandomForestRegressor(n_estimators=20, criterion='mae', max_features=n_features)
     elif model == 'lasso':
@@ -525,9 +690,18 @@ def getModel(model, n_features):
         return KNeighborsRegressor()
     elif model == 'dummy':
         return DummyRegressor()
+    elif model == 'poly':
+        return PolynomialFeatures()
 
 
-def varyFeatureNumber(data, target, modelname, tsize):
+def polyReg(data, target, deg):
+    lr = LinearRegression().fit(data, target)
+    plt.scatter(target.index, target, color='red', marker='x')
+    plt.plot(data.index, lr.predict(data), 'xb')
+    plt.show()
+
+
+def varyFeatureNumber(data, target, modelname, tsize, deg=None):
     test = {}
     for i in range(len(data.columns), 1, -1):
         # feature selection
@@ -543,9 +717,9 @@ def varyFeatureNumber(data, target, modelname, tsize):
         pred_target_test = model.predict(data_test)
 
         # visualize observed vs predicted
-        predtargtest = pd.DataFrame(pred_target_test)
-        target_test = target_test.reset_index(drop=True).T
         if debug:
+            predtargtest = pd.DataFrame(pred_target_test)
+            target_test = target_test.reset_index(drop=True).T
             plotMultiple(
                 pd.concat([predtargtest, target_test], axis=1).T.rename(
                     index={0: 'predicted value',
@@ -556,18 +730,40 @@ def varyFeatureNumber(data, target, modelname, tsize):
             )
 
         # storing of evaluation metrics
-        mse = mean_squared_error(target_test, pred_target_test)
-        test[i] = (
-            mse,  # mean squared error
-            mean_absolute_error(target_test, pred_target_test),
-            math.sqrt(mse),  # rmse
-            r2_score(target_test, pred_target_test),  # r-squared
-            (target_test - pred_target_test).mean(),  # mean residuals
-        )
+        if modelname == 'mlp':
+            mse = mean_squared_error(target_test, pred_target_test)
+            test[i] = (
+                mse,  # mean squared error
+                mean_absolute_error(target_test, pred_target_test),
+                math.sqrt(mse),  # rmse
+                r2_score(target_test, pred_target_test),  # r-squared
+                (target_test - pred_target_test).mean(),  # mean residuals
+                accuracy_score(target_test, pred_target_test),
+                precision_score(target_test, pred_target_test),
+                recall_score(target_test, pred_target_test),
+                f1_score(target_test, pred_target_test)
+            )
+        else:
+            mse = mean_squared_error(target_test, pred_target_test)
+            test[i] = (
+                mse,  # mean squared error
+                mean_absolute_error(target_test, pred_target_test),
+                math.sqrt(mse),  # rmse
+                r2_score(target_test, pred_target_test),  # r-squared
+                (target_test - pred_target_test).mean(),  # mean residuals
+            )
 
     # https://machinelearningmastery.com/metrics-evaluate-machine-learning-algorithms-python/
-    return pd.DataFrame.from_dict(test) \
-        .rename(index={
-            0: 'mse', 1: 'mae', 2: 'rmse',
-            3: 'r-squared', 4: 'avg residual'
-        })
+    if modelname == 'mlp':
+        return pd.DataFrame.from_dict(test) \
+            .rename(index={
+                0: 'mse', 1: 'mae', 2: 'rmse',
+                3: 'r-squared', 4: 'avg residual', 5: 'acc',
+                3: 'precision', 4: 'recall', 5: 'f1'
+            })
+    else:
+        return pd.DataFrame.from_dict(test) \
+            .rename(index={
+                0: 'mse', 1: 'mae', 2: 'rmse',
+                3: 'r-squared', 4: 'avg residual'
+            })
