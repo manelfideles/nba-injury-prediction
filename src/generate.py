@@ -6,7 +6,6 @@ components are generated.
 @ Alexandre Cortez Santos (???)
 """
 
-from numpy.core.defchararray import split
 from dependencies import *
 from utils import *
 from tests import *
@@ -333,5 +332,19 @@ cols = ['Player', 'Team', 'Season', 'Month',
         'Age', 'GP'] + cols[6:30] + cols[31:] + [cols[30]]
 dataset = dataset[cols]
 
-makeFeatureVectors(dataset, 3, 1)
+# get feature vectors to feed the model
+# fvs = makeFeatureVectors(dataset, 3, 1)
+# exportData(fvs, processedDataDir, 'fvs.csv')
+
+# window = 3
+fvs = importData(processedDataDir, 'fvs.csv')
+print(fvs)
+
+# split into train and test
+X_train, X_test, y_train, y_test = ttSplit(fvs, testsize=0.3, balanced=False)
+print(X_train.shape)
+print(X_test.shape)
+print(y_train.shape)
+print(y_test.shape)
+
 print('Done')

@@ -581,6 +581,21 @@ def concatTravels(df, tdf, monthNumbersRev):
     return df
 
 
+# ---------------------------------
+# Feature Selection, training and testing
+
+# Splitting
+def tt(data, target, testsize=0.3):
+    """
+    Wrapper function for train_test_split.
+    Returns 4 values:
+    - data_train and data_test; target_train and target_test.
+    Follows the 70%-30% rule-of-thumb for TT
+    by default.
+    """
+    return tts(data, target, test_size=testsize)
+
+
 def flattenVec(observations, winsize, increment):
     """
     Flattens player observations into
@@ -617,19 +632,29 @@ def renameColsWithDupes(df):
     )
 
 
-def makeFeatureVectors(df, winsize, increment, balance=True):
+def ttSplit(fvs, testsize=0.3, balanced=False):
     """
-    Returns feature vectors for a player,
-    given 'winsize' previous entries in the dataset.
-    'increment' controls the overlap of the sliding window.
+    Splits dataset into training and 
     If 'balance' is True, then data from each player is split
     and distributed among the train and test sets.
     If 'balance' is False, then the testing set will
     contain unseen data, which can hamper the model's performance.
     This argument is good for testing the generalizability of the model.
+    Returns data_train, data_test, target_train, target_test
     """
-    train, test = [], []
+    if balanced:
+        # ???
+        pass
+    else:
+        return tt(fvs.iloc[:, :-1], fvs.iloc[:, -1], testsize=testsize)
 
+
+def makeFeatureVectors(df, winsize, increment):
+    """
+    Returns feature vectors for a player,
+    given 'winsize' previous entries in the dataset.
+    'increment' controls the overlap of the sliding window.
+    """
     windows = []
     for key, item in df.groupby(['Season', 'Player']):
         fv = flattenVec(item.to_numpy(), winsize, increment)
@@ -644,12 +669,7 @@ def makeFeatureVectors(df, winsize, increment, balance=True):
             )
         out['Player'], out['Season'] = key[0], key[1]
         windows += [renameColsWithDupes(out)]
-    windf = pd.concat(windows, axis=0)
-    print(windf)
-    return train, test
-
-# ---------------------------------
-# Feature Selection, training and testing
+    return pd.concat(windows, axis=0)
 
 
 def selectFeatures(data, target, n_feats=20):
@@ -662,17 +682,6 @@ def selectFeatures(data, target, n_feats=20):
     """
     fs = SelectKBest(score_func=f_regression, k=n_feats)
     return pd.DataFrame(fs.fit_transform(data, target), columns=data.columns[fs.get_support(indices=True)])
-
-
-def tt(data, target, testsize=0.3):
-    """
-    Wrapper function for train_test_split.
-    Returns 4 values:
-    - data_train and data_test; target_train and target_test.
-    Follows the 70%-30% rule-of-thumb for TT
-    by default.
-    """
-    return tts(data, target, test_size=testsize)
 
 
 def getModel(model, n_features, deg=5):
