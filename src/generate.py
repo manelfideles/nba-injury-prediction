@@ -337,18 +337,43 @@ dataset = dataset[cols]
 # exportData(fvs, processedDataDir, 'fvs.csv')
 
 # window = 3
-fvs = importData(processedDataDir, 'fvs.csv')
-print(fvs.head())
+fvs = importData(processedDataDir, 'fvs.csv').drop(
+    columns={'Player', 'Season', 'Month_2', 'Age_2', 'Month_3', 'Age_3'})
 
 # number of player with observations < 'windowsize'
-print(f'observations < "windowsize": {fvs.shape[0] - fvs.dropna().shape[0]}')
+# print(f'observations < "windowsize": {fvs.shape[0] - fvs.dropna().shape[0]}')
+# plotHeatmap(fvs)
+
+# eliminate rows with nan - @TODO interpolate instead of removing
+# normalize
+fvs = fvs.dropna()
+
+# significantly imbalanced data (aka #non-injured >>> #injured)
+statMetrics = getStatisticalMetrics(fvs)
+# plotDistribution(fvs['Injured_1'], statMetrics['Injured_1'])
+# plotDistribution(fvs['Injured_2'], statMetrics['Injured_2'])
+# plotDistribution(fvs['Injured_3'], statMetrics['Injured_3'])
+
+features = fvs.iloc[:, :-1].drop(columns={'Injured_1', 'Injured_2'})
+target = fvs.iloc[-1]
+
+evr = 0.95  # desired explained variance ratio
+pca, pca_data = doPca(features, evr)
+# print(pca.n_components_)
+# print(pca.explained_variance_ratio_)
 
 # split into train and test
 X_train, X_test, y_train, y_test = ttSplit(fvs, testsize=0.3, balanced=False)
-print(X_train.shape)
-print(X_test.shape)
-print(y_train.shape)
-print(y_test.shape)
+
+clf = DummyClassifier('uniform')
+pred = clf.fit(X_train, y_train).predict(y_test)
+evalMetrics = getEvaluationMetrics(y_test, pred)
+print(reportEvaluationMetrics(evalMetrics))
+
+clf = DecisionTreeClassifier()
+pred = clf.fit(X_train, y_train).predict(y_test)
+evalMetrics = getEvaluationMetrics(y_test, pred)
+print(reportEvaluationMetrics(evalMetrics))
 
 
 print('Done')

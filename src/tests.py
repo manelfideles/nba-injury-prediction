@@ -97,3 +97,18 @@ def plotScatterGraph(data, axlabels, title, annotations=[]):
     plt.ylim([0, max(data[axlabels[1]])+1])
     plt.title(title)
     plt.show()
+
+
+def plotDistribution(row, stats):
+    print(stats)
+    sns.displot(row, color='skyblue', kind='kde')
+    plt.show()
+
+
+def plotHeatmap(data, method='pearson'):
+    corr = data.corr(method=method)
+    mask = np.zeros_like(corr)
+    mask[np.triu_indices_from(mask)] = True
+    with sns.axes_style("white"):
+        sns.heatmap(corr, mask=mask, square=True)
+    plt.show()

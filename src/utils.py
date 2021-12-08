@@ -323,59 +323,6 @@ def feetToMetres(df):
     return df * 0.3048
 
 
-# Statistical methods
-def normalize(df):
-    return (df - df.mean()) / df.std()
-
-
-def mean(df):
-    return df.mean()
-
-
-def median(df):
-    return df.median()
-
-
-def variance(df):
-    return df.var()
-
-
-def skewness(df):
-    return df.skew()
-
-
-def kurtosis(df):
-    return df.kurtosis()
-
-
-def iqr(df):
-    return df.quantile(.75) - df.quantile(.25)
-
-
-def zscore(df, k):
-    zs = abs((df - df.mean()) / df.std())
-    return df[zs < k], df[zs >= k]
-
-
-def getStatsAllSeasons(df):
-    sf = {}
-    for col in df.columns:
-        if col not in ['Player', 'Team', 'Season']:
-            sf[col] = getStatisticalFeatures(df[col])
-    return pd.DataFrame.from_dict(sf)
-
-
-def getStatisticalFeatures(df):
-    return {
-        'mean': mean(df),
-        'median': median(df),
-        'variance': variance(df),
-        'skewness': skewness(df),
-        'kurtosis': kurtosis(df),
-        'iqr': iqr(df)
-    }
-
-
 def sanitizeTravelMetrics(dir, filename):
     df = importData(dir, filename)[[
         'Season',
@@ -584,6 +531,21 @@ def concatTravels(df, tdf, monthNumbersRev):
 # ---------------------------------
 # Feature Selection, training and testing
 
+
+def doPca(features, percentage):
+    pca = PCA(percentage)
+    pca_data = pca.fit_transform(features)
+    return pca, pca_data
+
+
+def getStatisticalMetrics(df):
+    return df.agg([
+        'mean', 'median', 'std',
+        'var', 'skew', 'kurtosis',
+        lambda x: x.quantile(.75) - x.quantile(.25)
+    ]).rename(index={'<lambda>': 'iqr(75/25)'})
+
+
 # Splitting
 def tt(data, target, testsize=0.3):
     """
@@ -594,6 +556,41 @@ def tt(data, target, testsize=0.3):
     by default.
     """
     return tts(data, target, test_size=testsize)
+
+
+def getEvaluationMetrics(target, prediction):
+    return confusion_matrix(target, prediction), \
+        round(recall_score(target, prediction), 4), \
+        round(precision_score(target, prediction), 4), \
+        round(accuracy_score(target, prediction), 4), \
+        round(f1_score(target, prediction), 4)
+
+
+def reportEvaluationMetrics(args):
+    cm, r, p, a, f1 = args
+    return """Confusion Matrix: {}
+    Recall Score: {}
+    Precision Score: {}
+    Accuracy Score: {}
+    F1 Score: {}
+    """.format(cm, r, p, a, f1)
+
+
+def ttSplit(fvs, testsize=0.3, balanced=False):
+    """
+    Splits dataset into training and 
+    If 'balance' is True, then data from each player is split
+    and distributed among the train and test sets.
+    If 'balance' is False, then the testing set will
+    contain unseen data, which can hamper the model's performance.
+    This argument is good for testing the generalizability of the model.
+    Returns data_train, data_test, target_train, target_test
+    """
+    if balanced:
+        # ???
+        pass
+    else:
+        return tt(fvs.iloc[:, :-1], fvs.iloc[:, -1], testsize=testsize)
 
 
 def flattenVec(observations, winsize, increment):
@@ -632,23 +629,6 @@ def renameColsWithDupes(df):
     )
 
 
-def ttSplit(fvs, testsize=0.3, balanced=False):
-    """
-    Splits dataset into training and 
-    If 'balance' is True, then data from each player is split
-    and distributed among the train and test sets.
-    If 'balance' is False, then the testing set will
-    contain unseen data, which can hamper the model's performance.
-    This argument is good for testing the generalizability of the model.
-    Returns data_train, data_test, target_train, target_test
-    """
-    if balanced:
-        # ???
-        pass
-    else:
-        return tt(fvs.iloc[:, :-1], fvs.iloc[:, -1], testsize=testsize)
-
-
 def makeFeatureVectors(df, winsize, increment):
     """
     Returns feature vectors for a player,
@@ -672,6 +652,7 @@ def makeFeatureVectors(df, winsize, increment):
     return pd.concat(windows, axis=0)
 
 
+# Regression - Predict number of injuries
 def selectFeatures(data, target, n_feats=20):
     """
     Feature Selection for
