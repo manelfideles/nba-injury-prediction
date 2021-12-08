@@ -338,7 +338,10 @@ dataset = dataset[cols]
 
 # window = 3
 fvs = importData(processedDataDir, 'fvs.csv')
-print(fvs)
+print(fvs.head())
+
+# number of player with observations < 'windowsize'
+print(f'observations < "windowsize": {fvs.shape[0] - fvs.dropna().shape[0]}')
 
 # split into train and test
 X_train, X_test, y_train, y_test = ttSplit(fvs, testsize=0.3, balanced=False)
@@ -346,5 +349,6 @@ print(X_train.shape)
 print(X_test.shape)
 print(y_train.shape)
 print(y_test.shape)
+
 
 print('Done')
