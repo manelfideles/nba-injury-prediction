@@ -551,7 +551,7 @@ def findPCs(evratios, accuracy):
     """
     Finds index of number
     of pc's to include in our pca
-    by intersecting the evr % 
+    by intersecting the evr %
     and the evr's of pca.
     """
     return np.argwhere(np.diff(np.sign(
@@ -614,6 +614,7 @@ def getEvaluationMetrics(target, prediction):
     but when it is not the case, the performance can
     be quite misleading.
     """
+    precision, recall, _ = precision_recall_curve(target, prediction)
     return confusion_matrix(target, prediction), \
         round(recall_score(target, prediction), 4), \
         round(precision_score(target, prediction), 4), \
@@ -621,7 +622,7 @@ def getEvaluationMetrics(target, prediction):
         round(accuracy_score(target, prediction), 4) / 2, \
         round(f1_score(target, prediction), 4), \
         round(roc_auc_score(target, prediction), 4), \
-
+        auc(recall, precision)
 
 
 def reportEvaluationMetrics(args):
@@ -841,7 +842,3 @@ def varyFeatureNumberClassif(data, target, modelname, tsize):
         test[i] = getEvaluationMetrics(target_test, pred_target_test)
 
     return pd.DataFrame.from_dict(test) \
-        .rename(index={
-            0: 'confMat', 1: 'Rec', 2: 'Prec',
-            3: 'Acc', 4: 'BAcc', 5: 'F1', 6: 'ROC AUC'
-        })

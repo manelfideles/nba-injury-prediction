@@ -110,7 +110,11 @@ def plotHeatmap(data, method='pearson'):
     mask = np.zeros_like(corr)
     mask[np.triu_indices_from(mask)] = True
     with sns.axes_style("white"):
-        sns.heatmap(corr, mask=mask, square=True)
+        sns.heatmap(
+            corr, mask=mask, square=True,
+            vmin=-1, vmax=1, xticklabels=1,
+            yticklabels=1, center=0
+        )
     plt.show()
 
 
