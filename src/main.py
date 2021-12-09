@@ -7,6 +7,7 @@ and results are here.
 @ Alexandre Cortez Santos (???)
 """
 
+from sklearn.pipeline import make_pipeline
 from dependencies import *
 from utils import *
 from tests import *
@@ -119,24 +120,38 @@ fvs = fvs.dropna().reset_index()
 # features = fvs.iloc[:, :-1].drop(columns={'Injured_1', 'Injured_2'})
 # target = fvs.iloc[-1]
 
-# evr = 0.95  # desired explained variance ratio
-# pca, pca_data = doPca(features, evr)
-# print(pca.n_components_)
-# print(pca.explained_variance_ratio_)
-
-# split into train and test
-# X_train, X_test, y_train, y_test = ttSplit(fvs, testsize=0.3, balanced=False)
-
-
 data = fvs.iloc[:, :-1].apply(lambda x: (x-x.mean()) / x.std())
 print(data.shape)
 target = fvs.iloc[:, -1]
 print(target.shape)
 
+# class imbalance
+_, ax = plt.subplots()
+target.value_counts().plot(kind='barh')
+plt.show()
+
+evr = 95  # desired explained variance ratio
+evratios = getEvrs(data)
+pcs = findPCs(evratios, evr + 1)
+plotEvrPc(evratios, pcs)
+
 # Baseline
-allEvms = []
-for modelname in ['dummy', 'ridge', 'tree', 'forest', 'kn', 'svm', 'nb', 'mlp']:
-    allEvms += [varyFeatureNumberClassif(data, target, modelname, 0.3)]
+evms = []
+"""
+X_train, X_test, y_train, y_test = ttSplit(data, target, 0.2)
+clf = make_pipeline(
+    ReliefF(n_features_to_select=25, n_neighbors=10),
+    RandomForestClassifier(n_jobs=-1)
+)
+print(np.mean(cross_val_score(clf, X_train.to_numpy(), y_train.to_numpy())))
+"""
+#
+modelnames = ['dummy', 'ridge', 'tree', 'forest', 'kn', 'svm', 'nb', 'mlp']
+for mn in modelnames:
+    evms += [varyFeatureNumberClassif(data, target, mn, 0.3)]
+
+for i in range(len(evms)):
+    plotResults(evms[i], title=modelnames[i])
 
 
 print('Done')

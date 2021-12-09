@@ -112,3 +112,16 @@ def plotHeatmap(data, method='pearson'):
     with sns.axes_style("white"):
         sns.heatmap(corr, mask=mask, square=True)
     plt.show()
+
+
+def plotResults(evm, title=None):
+    _, ax = plt.subplots()
+    for stat in ['Rec', 'Prec', 'Acc', 'BAcc', 'F1']:
+        line, = ax.plot(
+            evm.columns.values, evm.loc[stat])
+        line.set_label(stat)
+    ax.legend()
+    if title:
+        plt.title(title)
+    plt.tight_layout()
+    plt.show()

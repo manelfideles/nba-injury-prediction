@@ -23,10 +23,10 @@ from sklearn.feature_selection import SelectFromModel
 from sklearn.feature_selection import f_regression
 from sklearn.feature_selection import f_classif
 from sklearn.model_selection import train_test_split as tts
-from sklearn.model_selection import cross_val_score as cvs
+from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import KFold
 from sklearn.decomposition import PCA
-import sklearn_relief as relief
+from skrebate import ReliefF
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -62,3 +62,4 @@ from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
 from sklearn.metrics import f1_score
 from sklearn.metrics import confusion_matrix
+from sklearn.metrics import roc_auc_score

@@ -529,10 +529,52 @@ def concatTravels(df, tdf, monthNumbersRev):
 # Feature Selection, training and testing
 
 
-def doPca(features, percentage):
-    pca = PCA(percentage)
-    pca_data = pca.fit_transform(features)
-    return pca, pca_data
+def doPca(dataset, n_components):
+    pca = PCA(n_components=n_components)
+    pca_dataset = pca.fit_transform(dataset)
+    return pca, pca_dataset
+
+
+def getEvrs(dataset):
+    """
+    Returns EVRs for a different
+    number of PC's
+    """
+    evratios = []
+    for i in range(len(dataset.columns)):
+        pca, _ = doPca(dataset, i)
+        evratios.append(sum(pca.explained_variance_ratio_) * 100)
+    return evratios
+
+
+def findPCs(evratios, accuracy):
+    """
+    Finds index of number
+    of pc's to include in our pca
+    by intersecting the evr % 
+    and the evr's of pca.
+    """
+    return np.argwhere(np.diff(np.sign(
+        evratios - np.repeat(accuracy, len(evratios))
+    ))).flatten()[0]
+
+
+def plotEvrPc(evratios, pc):
+    _, ax = plt.subplots()
+    x = np.arange(len(evratios))
+    ax.plot(x, evratios)
+    ax.plot(x[pc], evratios[pc], 'x', markersize=12,
+            label=f'# of PCs: {x[pc]}')
+    ax.axhline(evratios[pc], color='r', ls='--',
+               label=f'{round(evratios[pc], 2)} % EVR')
+    ax.legend(loc='lower right')
+    ax.set(
+        xlabel='number of PCs',
+        ylabel='explained variance ratio (%)',
+        title='# of PCs vs EVR'
+    )
+    ax.grid()
+    plt.show()
 
 
 def getStatisticalMetrics(df):
@@ -556,11 +598,30 @@ def tt(data, target, testsize=0.3):
 
 
 def getEvaluationMetrics(target, prediction):
+    # https://machinelearningmastery.com/tour-of-evaluation-metrics-for-imbalanced-classification/
+    """
+    Confusion Matrix:
+    Precision (Prec): #Tp / (#Tp + Fp)
+    Recall (Rec): #Tp / (#Tp + Fn)
+    Accuracy (Acc): Correct Predictions/Total predictions
+    Balanced Accuracy (BAcc): Acc / #classes
+    F1: 2 * (P*R)/(P+R)
+    NOTE: One limitation of these metrics is that they
+    assume that the class distribution observed in the
+    training dataset will match the distribution in the
+    test set and in real data when the model is used
+    to make predictions. This is often the case,
+    but when it is not the case, the performance can
+    be quite misleading.
+    """
     return confusion_matrix(target, prediction), \
         round(recall_score(target, prediction), 4), \
         round(precision_score(target, prediction), 4), \
         round(accuracy_score(target, prediction), 4), \
-        round(f1_score(target, prediction), 4)
+        round(accuracy_score(target, prediction), 4) / 2, \
+        round(f1_score(target, prediction), 4), \
+        round(roc_auc_score(target, prediction), 4), \
+
 
 
 def reportEvaluationMetrics(args):
@@ -649,19 +710,21 @@ def makeFeatureVectors(df, winsize, increment):
     return pd.concat(windows, axis=0)
 
 
-# Regression - Predict number of injuries
 def selectFeatures(data, target, n_feats, type='classif'):
     """
     Feature Selection for
     numerical input and numerical output.
     https://machinelearningmastery.com/feature-selection-with-real-and-categorical-data/.
-    This method uses Pearson's correlation coefficient method
-    to select the most relevant features. 'k' is the # of features to select.
+    Criteria:
+    - Regression: Pearson's corrcoef (Univariate feature selection)
+    - Classification: ANOVA F-Value (Univariate feature selection)
+    'k' is the # of features to select.
     """
     if type == 'regress':
         fs = SelectKBest(score_func=f_regression, k=n_feats)
-    else:
+    elif type == 'classif':
         fs = SelectKBest(score_func=f_classif, k=n_feats)
+    # @ TODO - RelieF
     return pd.DataFrame(fs.fit_transform(data, target), columns=data.columns[fs.get_support(indices=True)])
 
 
@@ -779,6 +842,6 @@ def varyFeatureNumberClassif(data, target, modelname, tsize):
 
     return pd.DataFrame.from_dict(test) \
         .rename(index={
-            0: 'confMat', 1: 'Recall', 2: 'Precision',
-            3: 'Accuracy', 4: 'F1'
+            0: 'confMat', 1: 'Rec', 2: 'Prec',
+            3: 'Acc', 4: 'BAcc', 5: 'F1', 6: 'ROC AUC'
         })
