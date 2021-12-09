@@ -11,13 +11,10 @@ the 'src' directory.
 @ Alexandre Cortez Santos (???)
 """
 
-from numpy.core.arrayprint import printoptions
-from pandas.core.frame import DataFrame
-from scipy.optimize.zeros import results_c
-from seaborn.regression import residplot
-from sklearn.utils import shuffle
 from dependencies import *
 from tests import plotMultiple
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # -- globals
 # -- these can be accessed from
@@ -576,9 +573,9 @@ def reportEvaluationMetrics(args):
     """.format(cm, r, p, a, f1)
 
 
-def ttSplit(fvs, testsize=0.3, balanced=False):
+def ttSplit(data, target, testsize, balanced=False):
     """
-    Splits dataset into training and 
+    Splits dataset into training and
     If 'balance' is True, then data from each player is split
     and distributed among the train and test sets.
     If 'balance' is False, then the testing set will
@@ -590,7 +587,7 @@ def ttSplit(fvs, testsize=0.3, balanced=False):
         # ???
         pass
     else:
-        return tt(fvs.iloc[:, :-1], fvs.iloc[:, -1], testsize=testsize)
+        return tt(data, target, testsize=testsize)
 
 
 def flattenVec(observations, winsize, increment):
@@ -653,7 +650,7 @@ def makeFeatureVectors(df, winsize, increment):
 
 
 # Regression - Predict number of injuries
-def selectFeatures(data, target, n_feats=20):
+def selectFeatures(data, target, n_feats, type='classif'):
     """
     Feature Selection for
     numerical input and numerical output.
@@ -661,49 +658,41 @@ def selectFeatures(data, target, n_feats=20):
     This method uses Pearson's correlation coefficient method
     to select the most relevant features. 'k' is the # of features to select.
     """
-    fs = SelectKBest(score_func=f_regression, k=n_feats)
+    if type == 'regress':
+        fs = SelectKBest(score_func=f_regression, k=n_feats)
+    else:
+        fs = SelectKBest(score_func=f_classif, k=n_feats)
     return pd.DataFrame(fs.fit_transform(data, target), columns=data.columns[fs.get_support(indices=True)])
 
 
-def getModel(model, n_features, deg=5):
+def getModelRegressor(model):
     if model == 'linreg':
         return LinearRegression()
     elif model == 'tree':
         return DecisionTreeRegressor()
     elif model == 'forest':
-        return RandomForestRegressor(n_estimators=20, criterion='mae', max_features=n_features)
+        return RandomForestRegressor()
     elif model == 'lasso':
         return Lasso()
-    elif model == 'mlp':
-        return MLPClassifier()
     elif model == 'kn':
         return KNeighborsRegressor()
     elif model == 'dummy':
         return DummyRegressor()
-    elif model == 'poly':
-        return PolynomialFeatures()
 
 
-def polyReg(data, target, deg):
-    lr = LinearRegression().fit(data, target)
-    plt.scatter(target.index, target, color='red', marker='x')
-    plt.plot(data.index, lr.predict(data), 'xb')
-    plt.show()
-
-
-def varyFeatureNumber(data, target, modelname, tsize, deg=None):
+def varyFeatureNumberReg(data, target, modelname, tsize):
     test = {}
     for i in range(len(data.columns), 1, -1):
         # feature selection
-        selected = selectFeatures(data, target, n_feats=i)
+        selected = selectFeatures(data, target, type='regress', n_feats=i)
 
         # data splitting
-        data_train, data_test, target_train, target_test = tt(
+        data_train, data_test, target_train, target_test = ttSplit(
             selected, target, testsize=tsize
         )
 
         # training
-        model = getModel(modelname, i).fit(data_train, target_train)
+        model = getModelRegressor(modelname, i).fit(data_train, target_train)
         pred_target_test = model.predict(data_test)
 
         # visualize observed vs predicted
@@ -720,40 +709,76 @@ def varyFeatureNumber(data, target, modelname, tsize, deg=None):
             )
 
         # storing of evaluation metrics
-        if modelname == 'mlp':
-            mse = mean_squared_error(target_test, pred_target_test)
-            test[i] = (
-                mse,  # mean squared error
-                mean_absolute_error(target_test, pred_target_test),
-                math.sqrt(mse),  # rmse
-                r2_score(target_test, pred_target_test),  # r-squared
-                (target_test - pred_target_test).mean(),  # mean residuals
-                accuracy_score(target_test, pred_target_test),
-                precision_score(target_test, pred_target_test),
-                recall_score(target_test, pred_target_test),
-                f1_score(target_test, pred_target_test)
-            )
-        else:
-            mse = mean_squared_error(target_test, pred_target_test)
-            test[i] = (
-                mse,  # mean squared error
-                mean_absolute_error(target_test, pred_target_test),
-                math.sqrt(mse),  # rmse
-                r2_score(target_test, pred_target_test),  # r-squared
-                (target_test - pred_target_test).mean(),  # mean residuals
-            )
+        mse = mean_squared_error(target_test, pred_target_test)
+        test[i] = (
+            mse,  # mean squared error
+            mean_absolute_error(target_test, pred_target_test),
+            math.sqrt(mse),  # rmse
+            r2_score(target_test, pred_target_test),  # r-squared
+            (target_test - pred_target_test).mean(),  # mean residuals
+        )
 
     # https://machinelearningmastery.com/metrics-evaluate-machine-learning-algorithms-python/
-    if modelname == 'mlp':
-        return pd.DataFrame.from_dict(test) \
-            .rename(index={
-                0: 'mse', 1: 'mae', 2: 'rmse',
-                3: 'r-squared', 4: 'avg residual', 5: 'acc',
-                3: 'precision', 4: 'recall', 5: 'f1'
-            })
-    else:
-        return pd.DataFrame.from_dict(test) \
-            .rename(index={
-                0: 'mse', 1: 'mae', 2: 'rmse',
-                3: 'r-squared', 4: 'avg residual'
-            })
+    return pd.DataFrame.from_dict(test) \
+        .rename(index={
+            0: 'mse', 1: 'mae', 2: 'rmse',
+            3: 'r-squared', 4: 'avg residual'
+        })
+
+
+def getModelClassif(model):
+    if model == 'dummy':
+        return DummyClassifier()
+    elif model == 'tree':
+        return DecisionTreeClassifier(criterion='entropy')
+    elif model == 'forest':
+        return RandomForestClassifier(n_estimators=150)
+    elif model == 'kn':
+        return KNeighborsClassifier(n_neighbors=10, weights='distance')
+    elif model == 'svm':
+        return SVC(C=0.5, kernel='poly', degree=5, class_weight='balanced')
+    elif model == 'nb':
+        return GaussianNB()
+    elif model == 'mlp':
+        return MLPClassifier()
+    elif model == 'ridge':
+        return RidgeClassifierCV()
+
+
+def varyFeatureNumberClassif(data, target, modelname, tsize):
+    print('Model: ', modelname)
+    test = {}
+    for i in range(1, len(data.columns)+1):
+        print(f'# of Features: {i}')
+        # feature selection
+        selected = selectFeatures(data, target, i, type='classif')
+
+        # data splitting
+        data_train, data_test, target_train, target_test = ttSplit(
+            selected, target, testsize=tsize
+        )
+
+        # training
+        clf = getModelClassif(modelname)
+        pred_target_test = clf.fit(data_train, target_train).predict(data_test)
+
+        # visualize observed vs predicted
+        if debug:
+            predtargtest = pd.DataFrame(pred_target_test)
+            target_test = target_test.reset_index(drop=True).T
+            plotMultiple(
+                pd.concat([predtargtest, target_test], axis=1).T.rename(
+                    index={0: 'predicted value', 1: 'real value'}
+                ),
+                'scatter',
+                title=f'[{modelname.capitalize()}] Predicted vs Real - Iter #{i}'
+            )
+
+        # storing of evaluation metrics
+        test[i] = getEvaluationMetrics(target_test, pred_target_test)
+
+    return pd.DataFrame.from_dict(test) \
+        .rename(index={
+            0: 'confMat', 1: 'Recall', 2: 'Precision',
+            3: 'Accuracy', 4: 'F1'
+        })

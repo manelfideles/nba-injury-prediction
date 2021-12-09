@@ -29,7 +29,6 @@ from sklearn.decomposition import PCA
 import sklearn_relief as relief
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
 
 # Models - Regression
 from sklearn.dummy import DummyRegressor
@@ -42,10 +41,14 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import PolynomialFeatures
 
 # Models - Classification
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.dummy import DummyClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neural_network import MLPClassifier
+from sklearn.linear_model import RidgeClassifierCV
 
 
 # Evaluation metrics - Regression

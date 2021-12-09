@@ -13,9 +13,10 @@ from tests import *
 
 # globals --
 testsize = 0.2
-ignore_ = False
+reg = False
 
-
+# Regression
+"""
 # Dataset EDA
 mainDataset = importData(processedDataDir, 'mainDataset.csv')
 # getStatsAllSeasons(mainDataset)
@@ -36,9 +37,9 @@ test_0inj = pd.DataFrame(0, index=np.arange(
 # Poly
 # polyReg(data.iloc[0:100], target.iloc[0:100], 5)
 
-if not ignore_:
-    # Dummy
-    evm = varyFeatureNumber(
+if reg:
+    # Dummy - baseline
+    evm = varyFeatureNumberReg(
         data.iloc[:50], target.iloc[:50], 'dummy', testsize)
     plotMultiple(
         evm,
@@ -47,7 +48,7 @@ if not ignore_:
     )
 
     # Linear Regression
-    evm = varyFeatureNumber(
+    evm = varyFeatureNumberReg(
         data.iloc[:25], target.iloc[:25], 'linreg', testsize)
     plotMultiple(
         evm,
@@ -56,7 +57,7 @@ if not ignore_:
     )
 
     # Lasso
-    evm = varyFeatureNumber(
+    evm = varyFeatureNumberReg(
         data.iloc[:25], target.iloc[:25], 'lasso', testsize)
     plotMultiple(
         evm,
@@ -65,7 +66,7 @@ if not ignore_:
     )
 
     # Decision Tree
-    evm = varyFeatureNumber(data, target, 'tree', testsize)
+    evm = varyFeatureNumberReg(data, target, 'tree', testsize)
     plotMultiple(
         evm,
         graphtype='line',
@@ -73,7 +74,7 @@ if not ignore_:
     )
 
     # K-Neighbors
-    evm = varyFeatureNumber(data, target, 'kn', testsize)
+    evm = varyFeatureNumberReg(data, target, 'kn', testsize)
     plotMultiple(
         evm,
         graphtype='line',
@@ -81,37 +82,11 @@ if not ignore_:
     )
 
     # Random Forest
-    evm = varyFeatureNumber(data, target, 'forest', testsize)
+    evm = varyFeatureNumberReg(data, target, 'forest', testsize)
     plotMultiple(
         evm,
         graphtype='line',
         title='[RFR] # of Features vs MSE, MAE, RMSE, R^2 - Testing set'
-    )
-
-    exit()
-
-    # Poly
-    evm = varyFeatureNumber(data, target, 'poly', testsize)
-    plotMultiple(
-        evm,
-        graphtype='line',
-        title='[Poly] # of Features vs MSE, MAE, RMSE, R^2 - Testing set'
-    )
-
-    """ # Ridge
-    evm = varyFeatureNumber(data, target, 'ridge', testsize)
-    plotMultiple(
-        evm,
-        graphtype='line',
-        title='[Ridge] # of Features vs MSE, MAE, RMSE, R^2 - Testing set'
-    ) """
-
-    # @TODO - Multi-layer Perceptron
-    evm = varyFeatureNumber(data, target, 'mlp', testsize)
-    plotMultiple(
-        evm,
-        graphtype='line',
-        title='[MLP] # of Features vs MSE, MAE, RMSE, R^2 - Testing set'
     )
 
 
@@ -121,5 +96,47 @@ if not ignore_:
 #       * experimentar outro metodo de feature selection:
 #         https://machinelearningmastery.com/calculate-feature-importance-with-python/
 # - o dataset que eu fiz está mal construido
+# - o problema é demasiado complexo para ser ajustado a uma relação linear
+"""
+
+# window = 3
+fvs = importData(processedDataDir, 'fvs.csv').drop(
+    columns={'Player', 'Season', 'Month_2', 'Age_2', 'Month_3', 'Age_3'})
+
+# number of player with observations < 'windowsize'
+# print(f'observations < "windowsize": {fvs.shape[0] - fvs.dropna().shape[0]}')
+# plotHeatmap(fvs)
+
+# eliminate rows with nan - @TODO interpolate instead of removing
+fvs = fvs.dropna().reset_index()
+
+# significantly imbalanced data (aka #non-injured >>> #injured)
+# statMetrics = getStatisticalMetrics(fvs)
+# plotDistribution(fvs['Injured_1'], statMetrics['Injured_1'])
+# plotDistribution(fvs['Injured_2'], statMetrics['Injured_2'])
+# plotDistribution(fvs['Injured_3'], statMetrics['Injured_3'])
+
+# features = fvs.iloc[:, :-1].drop(columns={'Injured_1', 'Injured_2'})
+# target = fvs.iloc[-1]
+
+# evr = 0.95  # desired explained variance ratio
+# pca, pca_data = doPca(features, evr)
+# print(pca.n_components_)
+# print(pca.explained_variance_ratio_)
+
+# split into train and test
+# X_train, X_test, y_train, y_test = ttSplit(fvs, testsize=0.3, balanced=False)
+
+
+data = fvs.iloc[:, :-1].apply(lambda x: (x-x.mean()) / x.std())
+print(data.shape)
+target = fvs.iloc[:, -1]
+print(target.shape)
+
+# Baseline
+allEvms = []
+for modelname in ['dummy', 'ridge', 'tree', 'forest', 'kn', 'svm', 'nb', 'mlp']:
+    allEvms += [varyFeatureNumberClassif(data, target, modelname, 0.3)]
+
 
 print('Done')
