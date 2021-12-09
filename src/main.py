@@ -16,6 +16,7 @@ from tests import *
 reg = False
 classif = True
 debug = True
+info = True
 
 
 # Regression yields bad results (< 20% Accuracy)
@@ -67,11 +68,13 @@ if classif:
     # of the number of total observations in the dataset.
     # So we remove them:
     nan_obs = fvs.shape[0] - fvs.dropna().shape[0]
-    print(f'observations < "windowsize": {nan_obs}')
-    print(f'Percentage of observations to discard: {nan_obs/fvs.shape[0]}')
+    if info:
+        print(f'Number of observations smaller than windowsize: {nan_obs}')
+        print(
+            f'Percentage of observations to discard: {round(nan_obs/fvs.shape[0], 3) * 100} %')
     fvs = fvs.dropna().reset_index(drop=True)
-    if debug:
-        print(fvs.shape)
+    if info:
+        print(f'Dataset shape after NaN removal: {fvs.shape}')
 
     # @TODO correr again pq já não me lembro oqeq este código faz
     # significantly imbalanced data (aka #non-injured >>> #injured)
@@ -83,24 +86,29 @@ if classif:
     # Dataset normalization
     data = fvs.iloc[:, :-1].apply(lambda x: (x-x.mean()) / x.std(), axis=1)
     target = fvs.iloc[:, -1]
-    print(data.shape)
-    print(target.shape)
+    if info:
+        print(f'Data shape after normalization: {data.shape}')
+        print(f'Target shape: {target.shape}')
 
-    # Plot class imbalance and univariate correlation
+    # Plot class imbalance and feature correlation
     imbalance = target.value_counts()
-    if debug:
-        print(imbalance)
-    _, ax = plt.subplots()
+    if info:
+        print(
+            f'Negative (Not-Injured) class examples (#, %): {imbalance.iloc[0]}, {round(imbalance.iloc[0]/target.shape[0], 2)}%')
+        print(
+            f'Positive (Injured) class examples (#, %): {imbalance.iloc[1]}, {round(imbalance.iloc[1]/target.shape[0], 2)}%')
     imbalance.plot(kind='barh')
-    plt.show()
     plotHeatmap(fvs)
 
-    # Perform PCA analysis with 95% EVR
+    # @TODO - Perform PCA analysis with 95% EVR
     evr = 95
-    evratios = getEvrs(data)
-    pcs = findPCs(evratios, evr + 1)
-    plotEvrPc(evratios, pcs)
+    if info:
+        # Plot PCA
+        evratios = getEvrs(data)
+        pcs = findPCs(evratios, evr + 1)
+        plotEvrPc(evratios, pcs)
 
+    # @TODO - Perform ReliefF with PCA result
     X_train, X_test, y_train, y_test = ttSplit(data, target, 0.2)
     clf = make_pipeline(
         ReliefF(n_features_to_select=25, n_neighbors=15),
@@ -108,16 +116,23 @@ if classif:
     )
     print(np.mean(cross_val_score(clf, X_train.to_numpy(), y_train.to_numpy())))
 
-    evms, modelnames = [], [
+    # TODO - Feed ReliefF output into models
+    # Compare models based on the following metrics:
+    # Confusion Matrix, Recall, Precision
+    # Accuracy, Balanced Accuracy, F1
+    # ROC AUC, Precision-Recall AUC
+    # while varying the selected features number
+    evms = []
+    modelnames = [
         'dummy', 'ridge', 'tree',
         'forest', 'kn', 'svm',
-        'nb', 'mlp'
-    ]
+        'nb', 'mlp']
     for mn in modelnames:
         evms += [varyFeatureNumberClassif(data, target, mn, 0.3)]
 
+    # Plot evaluation metrics vs number
+    # of selected features
     for i in range(len(evms)):
         plotResults(evms[i], title=modelnames[i])
-
 
 print('Done')
