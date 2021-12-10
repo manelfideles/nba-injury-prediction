@@ -842,3 +842,8 @@ def varyFeatureNumberClassif(data, target, modelname, tsize):
         test[i] = getEvaluationMetrics(target_test, pred_target_test)
 
     return pd.DataFrame.from_dict(test) \
+        .rename(index={
+            0: 'confMat', 1: 'Rec', 2: 'Prec',
+            3: 'Acc', 4: 'BAcc', 5: 'F1',
+            6: 'ROC AUC', 7: 'Precision-Recall AUC'
+        })

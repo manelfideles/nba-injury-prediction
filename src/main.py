@@ -101,7 +101,7 @@ if classif:
     plotHeatmap(fvs)
 
     # @TODO - Perform PCA analysis with 95% EVR
-    evr = 98
+    evr = 95
     evratios = getEvrs(data)
     pcs = findPCs(evratios, evr + 1)
     plotEvrPc(evratios, pcs)
@@ -121,10 +121,10 @@ if classif:
     # ROC AUC, Precision-Recall AUC
     # while varying the selected features number
     evms = []
-    modelnames = [
-        'dummy', 'ridge', 'tree',
+    modelnames = ['dummy']
+    """ , 'ridge', 'tree',
         'forest', 'kn', 'svm',
-        'nb', 'mlp']
+        'nb', 'mlp'] """
     for mn in modelnames:
         evms += [varyFeatureNumberClassif(data, target, mn, 0.3)]
 
