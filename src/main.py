@@ -84,7 +84,7 @@ if classif:
     # plotDistribution(fvs['Injured_3'], statMetrics['Injured_3'])
 
     # Dataset normalization
-    data = fvs.iloc[:, :-1].apply(lambda x: (x-x.mean()) / x.std(), axis=1)
+    data = fvs.iloc[:, :-1].apply(lambda x: (x-x.mean()) / x.std())
     target = fvs.iloc[:, -1]
     if info:
         print(f'Data shape after normalization: {data.shape}')
@@ -101,12 +101,10 @@ if classif:
     plotHeatmap(fvs)
 
     # @TODO - Perform PCA analysis with 95% EVR
-    evr = 95
-    if info:
-        # Plot PCA
-        evratios = getEvrs(data)
-        pcs = findPCs(evratios, evr + 1)
-        plotEvrPc(evratios, pcs)
+    evr = 98
+    evratios = getEvrs(data)
+    pcs = findPCs(evratios, evr + 1)
+    plotEvrPc(evratios, pcs)
 
     # @TODO - Perform ReliefF with PCA result
     X_train, X_test, y_train, y_test = ttSplit(data, target, 0.2)
