@@ -17,7 +17,7 @@ reg = False
 classif = True
 debug = False
 info = False
-pca = False
+pca = True
 global_testsize = 0.15
 
 
@@ -94,6 +94,7 @@ if classif:
         print(f'Data shape after normalization: {data.shape}')
         print(f'Target shape: {target.shape}')
 
+    """
     X_train, X_test, y_train, y_test = ttSplit(
         data, target,
         global_testsize,
@@ -101,13 +102,7 @@ if classif:
         playercol=fvs['Player'],
         seasoncol=fvs['Season']
     )
-    if info:
-        print(f'X_train shape: {X_train.shape}')
-        print(f'X_test shape: {X_test.shape}')
-        print(f'y_train shape: {y_train.shape}')
-        print(f'y_test shape: {y_test.shape}')
-
-    exit()
+    """
 
     # Plot class imbalance and feature correlation
     imbalance = target.value_counts()
@@ -138,11 +133,11 @@ if classif:
     n_features = 44
     _, data_pca = doPca(data, n_features)
 
-    # @TODO - Perform SFS with subset of PCA data
+    # Perform SFS with subset of PCA data
     # to save on time and memory.
     # Subset size is set at 20%.
     # Loop through increasing number of features
-    # to measure performance of Sequential Forward Selection
+    # to measure performance of Sequential Forward Selection.
     samples = np.random.choice(
         data_pca.shape[0],
         size=math.floor(data_pca.shape[0] * 0.1),
@@ -151,7 +146,7 @@ if classif:
     data_pca_subset = data_pca[samples]
     target_subset = target[samples]
 
-    # With PCA - splitting, sfs, plotting
+    # [PCA] Random splitting, sfs, plotting
     if pca:
         X_train, X_test, y_train, y_test = ttSplit(
             data_pca_subset,
@@ -184,16 +179,18 @@ if classif:
         plt.title('[PCA] ROC-AUC (w/ KN) after SFS vs # of features')
         plt.show()
 
-    # W/out PCA - splitting, sfs, plotting
-    else:
+        # [PCA] Balanced splitting, sfs, plotting
         X_train, X_test, y_train, y_test = ttSplit(
-            data,
-            target,
-            global_testsize
+            data_pca_subset,
+            target_subset,
+            global_testsize,
+            balanced=True,
+            playercol=fvs['Player'],
+            seasoncol=fvs['Season']
         )
-        sfs_metrics_no_pca = []
-        print('Performing SFSelection w/o PCA...')
-        for i in range(1, len(data.columns.tolist())):
+        sfs_metrics_pca_balanced = []
+        print('Performing SFSelection w/ PCA...')
+        for i in range(1, n_features):
             print(f'# of Features: {i}')
             clf = make_pipeline(
                 SequentialFeatureSelector(
@@ -202,8 +199,9 @@ if classif:
                 ),
                 KNeighborsClassifier(n_jobs=-1)
             ).fit(X_train, y_train)
+
             # Measuring
-            sfs_metrics_no_pca += [
+            sfs_metrics_pca_balanced += [
                 round(roc_auc_score(
                     y_test,
                     clf.predict(X_test),
@@ -212,8 +210,8 @@ if classif:
             ]
 
         _, ax = plt.subplots()
-        ax.plot(sfs_metrics_no_pca, 'o-')
-        plt.title('[NO PCA] ROC-AUC (w/ KN) after SFS vs # of features')
+        ax.plot(sfs_metrics_pca_balanced, 'o-')
+        plt.title('[PCA] ROC-AUC (w/ KN) after SFS vs # of features')
         plt.show()
 
     exit()

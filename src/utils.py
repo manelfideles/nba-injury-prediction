@@ -665,8 +665,7 @@ def ttSplit(data, target, testsize, balanced=False, playercol=None, seasoncol=No
         data['Player'], data['Season'] = playercol, seasoncol
         data['Target'] = target
         train, test = [], []
-        groups = data.groupby(['Player', 'Season'])
-        for _, obs in groups:
+        for _, obs in data.groupby(['Player', 'Season']):
             obs = obs.reset_index(drop=True)
             if len(obs) > 1:
                 test_filter = obs.sample(
