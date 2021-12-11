@@ -40,10 +40,13 @@ def plotHistogram(data, axlabels, title=None, limit=10, orientation='horz', dim=
 def plotLineGraph(data, axlabels, title=None):
     _, ax = plt.subplots()
     ax.plot(data.iloc[:, 0], data.iloc[:, 1], 'o-')
+
     for i, txt in enumerate(data.iloc[:, 1]):
         ax.annotate(txt, (data.iloc[i, 0], data.iloc[i, 1]))
-    ax.set_xlabel(axlabels[0])
-    ax.set_ylabel(axlabels[1])
+
+    if axlabels:
+        ax.set_xlabel(axlabels[0])
+        ax.set_ylabel(axlabels[1])
     if title:
         plt.title(title)
     plt.show()
@@ -112,15 +115,15 @@ def plotHeatmap(data, method='pearson'):
     with sns.axes_style("white"):
         sns.heatmap(
             corr, mask=mask, square=True,
-            vmin=-1, vmax=1, xticklabels=1,
-            yticklabels=1, center=0
+            vmin=-1, vmax=1, xticklabels=3,
+            yticklabels=3, center=0
         )
     plt.show()
 
 
 def plotResults(evm, title=None):
     _, ax = plt.subplots()
-    for stat in ['Rec', 'Prec', 'Acc', 'BAcc', 'F1']:
+    for stat in ['Rec', 'Prec', 'Acc', 'BAcc', 'F1', 'ROC AUC', 'PR AUC']:
         line, = ax.plot(
             evm.columns.values, evm.loc[stat])
         line.set_label(stat)

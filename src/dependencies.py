@@ -20,13 +20,14 @@ import sklearn
 # Feature selection and splitting
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import SelectFromModel
+from sklearn.feature_selection import SequentialFeatureSelector
 from sklearn.feature_selection import f_regression
 from sklearn.feature_selection import f_classif
 from sklearn.model_selection import train_test_split as tts
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import KFold
 from sklearn.decomposition import PCA
-from skrebate import ReliefF
+from skrebate import SURF
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 

@@ -15,6 +15,7 @@ from dependencies import *
 from tests import plotMultiple
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
+np.random.seed(0)
 
 # -- globals
 # -- these can be accessed from
@@ -577,6 +578,20 @@ def plotEvrPc(evratios, pc):
     plt.show()
 
 
+def savePCAFeatures(data, n_components=42):
+    model = PCA(n_components=n_components).fit(data)
+    _ = model.transform(data)
+    n_pcs = model.components_.shape[0]
+    most_important_pcs = [
+        np.abs(model.components_[i]).argmax() for i in range(n_pcs)
+    ]
+    initial_feature_names = data.columns.tolist()
+    most_important_names = [
+        initial_feature_names[most_important_pcs[i]] for i in range(n_pcs)
+    ]
+    return pd.DataFrame({'PC{}'.format(i): most_important_names[i] for i in range(n_pcs)}.items())
+
+
 def getStatisticalMetrics(df):
     return df.agg([
         'mean', 'median', 'std',
@@ -621,7 +636,7 @@ def getEvaluationMetrics(target, prediction):
         round(accuracy_score(target, prediction), 4), \
         round(accuracy_score(target, prediction), 4) / 2, \
         round(f1_score(target, prediction), 4), \
-        round(roc_auc_score(target, prediction), 4), \
+        round(roc_auc_score(target, prediction, average='weighted'), 4), \
         auc(recall, precision)
 
 
@@ -647,6 +662,10 @@ def ttSplit(data, target, testsize, balanced=False):
     """
     if balanced:
         # ???
+        # groupby
+        # count number of examples for each player
+        # if #obs_player > 1, testobs = randomly sample 'floor(testsize * #obs_player)' features
+        # else: insert obs into training set
         pass
     else:
         return tt(data, target, testsize=testsize)
@@ -792,21 +811,21 @@ def varyFeatureNumberReg(data, target, modelname, tsize):
 
 def getModelClassif(model):
     if model == 'dummy':
-        return DummyClassifier()
+        return DummyClassifier(random_state=0)
     elif model == 'tree':
-        return DecisionTreeClassifier(criterion='entropy')
+        return DecisionTreeClassifier(criterion='entropy', random_state=0)
     elif model == 'forest':
-        return RandomForestClassifier(n_estimators=150)
+        return RandomForestClassifier(n_estimators=150, random_state=0)
     elif model == 'kn':
         return KNeighborsClassifier(n_neighbors=10, weights='distance')
     elif model == 'svm':
-        return SVC(C=0.5, kernel='poly', degree=5, class_weight='balanced')
+        return SVC(C=0.5, kernel='poly', degree=5, class_weight='balanced', random_state=0)
     elif model == 'nb':
         return GaussianNB()
     elif model == 'mlp':
-        return MLPClassifier()
+        return MLPClassifier(random_state=0)
     elif model == 'ridge':
-        return RidgeClassifierCV()
+        return RidgeClassifierCV(class_weight='balanced')
 
 
 def varyFeatureNumberClassif(data, target, modelname, tsize):
@@ -823,8 +842,12 @@ def varyFeatureNumberClassif(data, target, modelname, tsize):
         )
 
         # training
-        clf = getModelClassif(modelname)
-        pred_target_test = clf.fit(data_train, target_train).predict(data_test)
+        if modelname != 'no-injury':
+            clf = getModelClassif(modelname)
+            pred_target_test = clf.fit(
+                data_train, target_train).predict(data_test)
+        else:
+            pred_target_test = np.zeros_like(target_test)
 
         # visualize observed vs predicted
         if debug:
@@ -845,5 +868,5 @@ def varyFeatureNumberClassif(data, target, modelname, tsize):
         .rename(index={
             0: 'confMat', 1: 'Rec', 2: 'Prec',
             3: 'Acc', 4: 'BAcc', 5: 'F1',
-            6: 'ROC AUC', 7: 'Precision-Recall AUC'
+            6: 'ROC AUC', 7: 'PR AUC'
         })

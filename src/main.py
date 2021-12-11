@@ -16,7 +16,9 @@ from tests import *
 reg = False
 classif = True
 debug = True
-info = True
+info = False
+pca = False
+global_testsize = 0.15
 
 
 # Regression yields bad results (< 20% Accuracy)
@@ -44,7 +46,7 @@ if reg:
 
     for mn in modelnames:
         evm = varyFeatureNumberReg(
-            data, target, mn, testsize)
+            data, target, mn, global_testsize)
         plotMultiple(
             evm,
             graphtype='line',
@@ -55,11 +57,8 @@ if reg:
 if classif:
     # Import windowed feature vectors (windowsize=3)
     fvs = importData(processedDataDir, 'fvs.csv').drop(
-        columns={
-            'Player', 'Season', 'Month_2',
-            'Age_2', 'Month_3', 'Age_3'
-        }
-    )
+        columns={'Month_2', 'Month_3', 'Age_3'}  # {'Player', 'Season'}
+    ).rename(columns={'Age_2': 'Age'})
 
     # windowsize=3 yields 307 observations that are
     # going to be removed.
@@ -84,7 +83,7 @@ if classif:
     # plotDistribution(fvs['Injured_3'], statMetrics['Injured_3'])
 
     # Dataset normalization
-    data = fvs.iloc[:, :-1].apply(lambda x: (x-x.mean()) / x.std())
+    data = fvs.iloc[:, 2:-1].apply(lambda x: (x-x.mean()) / x.std())
     target = fvs.iloc[:, -1]
     if info:
         print(f'Data shape after normalization: {data.shape}')
@@ -94,39 +93,125 @@ if classif:
     imbalance = target.value_counts()
     if info:
         print(
-            f'Negative (Not-Injured) class examples (#, %): {imbalance.iloc[0]}, {round(imbalance.iloc[0]/target.shape[0], 2)}%')
-        print(
-            f'Positive (Injured) class examples (#, %): {imbalance.iloc[1]}, {round(imbalance.iloc[1]/target.shape[0], 2)}%')
-    imbalance.plot(kind='barh')
-    plotHeatmap(fvs)
+            f'Positive (Injured) class examples (#, %): {imbalance.iloc[1]}, {round(imbalance.iloc[1]/target.shape[0], 4) * 100}%')
+        imbalance.plot(kind='barh')
+        plt.show()
+        plotHeatmap(fvs)
 
-    # @TODO - Perform PCA analysis with 95% EVR
-    evr = 95
-    evratios = getEvrs(data)
-    pcs = findPCs(evratios, evr + 1)
-    plotEvrPc(evratios, pcs)
+    # Perform PCA analysis on the dataset in order to
+    # remove the features with residual EVR.
+    # For ReliefF: The major drawback of ReliefF
+    # is that it does not consider feature dependencies
+    # and therefore does not help remove redundant features.
+    # PCA combats that issue, by reducing dimensionality through
+    # the elimination of features with residual EVR.
+    # For SFS (Sequential Forward Selection):
+    # PCA is used for dimensionality reduction, as SFS can be
+    # very computationally heavy, even with few features to process.
+    # @TODO - Perform PCA analysis with 99% EVR
+    if info:
+        evr = 99  # corresponds to 42 PCs
+        evratios = getEvrs(data)
+        pcs = findPCs(evratios, evr)
+        plotEvrPc(evratios, pcs)
 
-    # @TODO - Perform ReliefF with PCA result
-    X_train, X_test, y_train, y_test = ttSplit(data, target, 0.2)
-    clf = make_pipeline(
-        ReliefF(n_features_to_select=25, n_neighbors=15),
-        RandomForestClassifier(n_jobs=-1)
+    n_features = 42
+    _, data_pca = doPca(data, n_features)
+
+    # @TODO - Perform SFS with subset of PCA data
+    # to save on time and memory.
+    # Subset size is set at 20%.
+    # Loop through increasing number of features
+    # to measure performance of Sequential Forward Selection
+    samples = np.random.choice(
+        data_pca.shape[0],
+        size=math.floor(data_pca.shape[0] * 0.1),
+        replace=False
     )
-    print(np.mean(cross_val_score(clf, X_train.to_numpy(), y_train.to_numpy())))
+    data_pca_subset = data_pca[samples]
+    target_subset = target[samples]
 
-    # TODO - Feed ReliefF output into models
+    # With PCA - splitting, sfs, plotting
+    if pca:
+        X_train, X_test, y_train, y_test = ttSplit(
+            data_pca_subset,
+            target_subset,
+            global_testsize
+        )
+        sfs_metrics_pca = []
+        print('Performing SFSelection w/ PCA...')
+        for i in range(1, n_features):
+            print(f'# of Features: {i}')
+            clf = make_pipeline(
+                SequentialFeatureSelector(
+                    KNeighborsClassifier(n_neighbors=3, n_jobs=-1),
+                    n_features_to_select=i
+                ),
+                KNeighborsClassifier(n_jobs=-1)
+            ).fit(X_train, y_train)
+
+            # Measuring
+            sfs_metrics_pca += [
+                round(roc_auc_score(
+                    y_test,
+                    clf.predict(X_test),
+                    average='weighted'
+                ), 4)
+            ]
+
+        _, ax = plt.subplots()
+        ax.plot(sfs_metrics_pca, 'o-')
+        plt.title('[PCA] ROC-AUC (w/ KN) after SFS vs # of features')
+        plt.show()
+
+    # W/out PCA - splitting, sfs, plotting
+    else:
+        X_train, X_test, y_train, y_test = ttSplit(
+            data,
+            target,
+            global_testsize
+        )
+        sfs_metrics_no_pca = []
+        print('Performing SFSelection w/o PCA...')
+        for i in range(1, len(data.columns.tolist())):
+            print(f'# of Features: {i}')
+            clf = make_pipeline(
+                SequentialFeatureSelector(
+                    KNeighborsClassifier(n_neighbors=3, n_jobs=-1),
+                    n_features_to_select=i
+                ),
+                KNeighborsClassifier(n_jobs=-1)
+            ).fit(X_train, y_train)
+            # Measuring
+            sfs_metrics_no_pca += [
+                round(roc_auc_score(
+                    y_test,
+                    clf.predict(X_test),
+                    average='weighted'
+                ), 4)
+            ]
+
+        _, ax = plt.subplots()
+        ax.plot(sfs_metrics_no_pca, 'o-')
+        plt.title('[NO PCA] ROC-AUC (w/ KN) after SFS vs # of features')
+        plt.show()
+
+    exit()
+
+    # TODO - Feed feature selection output into models
     # Compare models based on the following metrics:
     # Confusion Matrix, Recall, Precision
     # Accuracy, Balanced Accuracy, F1
     # ROC AUC, Precision-Recall AUC
     # while varying the selected features number
     evms = []
-    modelnames = ['dummy']
-    """ , 'ridge', 'tree',
-        'forest', 'kn', 'svm',
-        'nb', 'mlp'] """
+    modelnames = [
+        'no-injury', 'dummy', 'ridge',
+        'tree', 'forest', 'kn',
+        'svm', 'nb', 'mlp'
+    ]
     for mn in modelnames:
-        evms += [varyFeatureNumberClassif(data, target, mn, 0.3)]
+        evms += [varyFeatureNumberClassif(data, target, mn, global_testsize)]
 
     # Plot evaluation metrics vs number
     # of selected features
