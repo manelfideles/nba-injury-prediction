@@ -817,9 +817,9 @@ def getModelClassif(model):
     elif model == 'forest':
         return RandomForestClassifier(n_estimators=150, random_state=0)
     elif model == 'kn':
-        return KNeighborsClassifier(n_neighbors=10, weights='distance')
+        return KNeighborsClassifier(n_neighbors=10)
     elif model == 'svm':
-        return SVC(C=0.5, kernel='poly', degree=5, class_weight='balanced', random_state=0)
+        return SVC(class_weight='balanced', random_state=0)
     elif model == 'nb':
         return GaussianNB()
     elif model == 'mlp':

@@ -13,11 +13,11 @@ from utils import *
 from tests import *
 
 # globals --
-reg = False
-classif = True
+reg = True
+classif = False
 debug = True
 info = False
-pca = False
+pca = True
 global_testsize = 0.15
 
 
@@ -83,9 +83,14 @@ if classif:
     # plotDistribution(fvs['Injured_3'], statMetrics['Injured_3'])
 
     # Dataset normalization
-    data = fvs.iloc[:, 2:-1].apply(lambda x: (x-x.mean()) / x.std())
+    for col in fvs.columns.tolist()[2:-1]:
+        if col not in ['Injured_1', 'Injured_2']:
+            fvs[col] = (fvs[col] - fvs[col].mean()) / fvs[col].std()
+    data = fvs.iloc[:, 2:-1]
     target = fvs.iloc[:, -1]
     if info:
+        print(data)
+        print(target)
         print(f'Data shape after normalization: {data.shape}')
         print(f'Target shape: {target.shape}')
 
@@ -110,12 +115,12 @@ if classif:
     # very computationally heavy, even with few features to process.
     # @TODO - Perform PCA analysis with 99% EVR
     if info:
-        evr = 99  # corresponds to 42 PCs
+        evr = 99  # corresponds to 44 PCs
         evratios = getEvrs(data)
         pcs = findPCs(evratios, evr)
         plotEvrPc(evratios, pcs)
 
-    n_features = 42
+    n_features = 44
     _, data_pca = doPca(data, n_features)
 
     # @TODO - Perform SFS with subset of PCA data
