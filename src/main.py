@@ -13,11 +13,11 @@ from utils import *
 from tests import *
 
 # globals --
-reg = True
-classif = False
-debug = True
+reg = False
+classif = True
+debug = False
 info = False
-pca = True
+pca = False
 global_testsize = 0.15
 
 
@@ -93,6 +93,21 @@ if classif:
         print(target)
         print(f'Data shape after normalization: {data.shape}')
         print(f'Target shape: {target.shape}')
+
+    X_train, X_test, y_train, y_test = ttSplit(
+        data, target,
+        global_testsize,
+        balanced=True,
+        playercol=fvs['Player'],
+        seasoncol=fvs['Season']
+    )
+    if info:
+        print(f'X_train shape: {X_train.shape}')
+        print(f'X_test shape: {X_test.shape}')
+        print(f'y_train shape: {y_train.shape}')
+        print(f'y_test shape: {y_test.shape}')
+
+    exit()
 
     # Plot class imbalance and feature correlation
     imbalance = target.value_counts()

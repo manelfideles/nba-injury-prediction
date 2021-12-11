@@ -650,23 +650,38 @@ def reportEvaluationMetrics(args):
     """.format(cm, r, p, a, f1)
 
 
-def ttSplit(data, target, testsize, balanced=False):
+def ttSplit(data, target, testsize, balanced=False, playercol=None, seasoncol=None):
     """
     Splits dataset into training and
     If 'balance' is True, then data from each player is split
-    and distributed among the train and test sets.
+    and distributed among the train and test sets. In the cases
+    where there is only 1 observation, the 
     If 'balance' is False, then the testing set will
     contain unseen data, which can hamper the model's performance.
     This argument is good for testing the generalizability of the model.
     Returns data_train, data_test, target_train, target_test
     """
     if balanced:
-        # ???
-        # groupby
-        # count number of examples for each player
-        # if #obs_player > 1, testobs = randomly sample 'floor(testsize * #obs_player)' features
-        # else: insert obs into training set
-        pass
+        data['Player'], data['Season'] = playercol, seasoncol
+        data['Target'] = target
+        train, test = [], []
+        groups = data.groupby(['Player', 'Season'])
+        for _, obs in groups:
+            obs = obs.reset_index(drop=True)
+            if len(obs) > 1:
+                test_filter = obs.sample(
+                    math.ceil(len(obs) * testsize),
+                    replace=True).index.values
+                train_filter = np.delete(
+                    obs.index.values,
+                    np.where(obs.index.values == test_filter)
+                )
+                train += [obs.iloc[train_filter, :-2]]
+                test += [obs.iloc[test_filter, :-2]]
+        return pd.concat(train).iloc[:, :-1].to_numpy(), \
+            pd.concat(test).iloc[:, :-1].to_numpy(), \
+            pd.concat(train).iloc[:, -1].to_numpy(), \
+            pd.concat(test).iloc[:, -1].to_numpy()
     else:
         return tt(data, target, testsize=testsize)
 
@@ -775,7 +790,7 @@ def varyFeatureNumberReg(data, target, modelname, tsize):
         )
 
         # training
-        model = getModelRegressor(modelname, i).fit(data_train, target_train)
+        model = getModelRegressor(modelname).fit(data_train, target_train)
         pred_target_test = model.predict(data_test)
 
         # visualize observed vs predicted
