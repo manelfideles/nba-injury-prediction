@@ -609,7 +609,7 @@ def tt(data, target, testsize=0.3):
     Follows the 70%-30% rule-of-thumb for TT
     by default.
     """
-    return tts(data, target, test_size=testsize)
+    return tts(data, target, test_size=testsize, random_state=42)
 
 
 def getEvaluationMetrics(target, prediction):
@@ -654,8 +654,7 @@ def ttSplit(data, target, testsize, balanced=False, playercol=None, seasoncol=No
     """
     Splits dataset into training and
     If 'balance' is True, then data from each player is split
-    and distributed among the train and test sets. In the cases
-    where there is only 1 observation, the 
+    and distributed among the train and test sets.
     If 'balance' is False, then the testing set will
     contain unseen data, which can hamper the model's performance.
     This argument is good for testing the generalizability of the model.
@@ -768,15 +767,15 @@ def getModelRegressor(model):
     if model == 'linreg':
         return LinearRegression()
     elif model == 'tree':
-        return DecisionTreeRegressor()
+        return DecisionTreeRegressor(random_state=42)
     elif model == 'forest':
-        return RandomForestRegressor()
+        return RandomForestRegressor(random_state=42)
     elif model == 'lasso':
-        return Lasso()
+        return Lasso(alpha=2.5, selection='random', tol=1e-3, random_state=42)
     elif model == 'kn':
-        return KNeighborsRegressor()
+        return KNeighborsRegressor(n_neighbors=10)
     elif model == 'dummy':
-        return DummyRegressor()
+        return DummyRegressor(strategy='mean')
 
 
 def varyFeatureNumberReg(data, target, modelname, tsize):

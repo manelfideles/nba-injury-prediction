@@ -115,8 +115,8 @@ def plotHeatmap(data, method='pearson'):
     with sns.axes_style("white"):
         sns.heatmap(
             corr, mask=mask, square=True,
-            vmin=-1, vmax=1, xticklabels=3,
-            yticklabels=3, center=0
+            vmin=-1, vmax=1, xticklabels=1,
+            yticklabels=1, center=0
         )
     plt.show()
 
