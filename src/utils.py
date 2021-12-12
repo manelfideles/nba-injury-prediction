@@ -662,7 +662,8 @@ def ttSplit(data, target, testsize, balanced=False, playercol=None, seasoncol=No
     Returns data_train, data_test, target_train, target_test
     """
     if balanced:
-        data['Player'], data['Season'] = playercol, seasoncol
+        data['Player'] = playercol
+        data['Season'] = seasoncol
         data['Target'] = target
         train, test = [], []
         for _, obs in data.groupby(['Player', 'Season']):
@@ -675,12 +676,14 @@ def ttSplit(data, target, testsize, balanced=False, playercol=None, seasoncol=No
                     obs.index.values,
                     np.where(obs.index.values == test_filter)
                 )
-                train += [obs.iloc[train_filter, :-2]]
-                test += [obs.iloc[test_filter, :-2]]
-        return pd.concat(train).iloc[:, :-1].to_numpy(), \
-            pd.concat(test).iloc[:, :-1].to_numpy(), \
-            pd.concat(train).iloc[:, -1].to_numpy(), \
-            pd.concat(test).iloc[:, -1].to_numpy()
+                obs = obs.drop(['Player', 'Season'], axis=1)
+                train += [obs.iloc[train_filter]]
+                test += [obs.iloc[test_filter]]
+
+        return pd.concat(train).reset_index(drop=True).iloc[:, :-1], \
+            pd.concat(test).reset_index(drop=True).iloc[:, :-1], \
+            pd.concat(train).reset_index(drop=True).iloc[:, -1], \
+            pd.concat(test).reset_index(drop=True).iloc[:, -1]
     else:
         return tt(data, target, testsize=testsize)
 
@@ -758,7 +761,6 @@ def selectFeatures(data, target, n_feats, type='classif'):
         fs = SelectKBest(score_func=f_regression, k=n_feats)
     elif type == 'classif':
         fs = SelectKBest(score_func=f_classif, k=n_feats)
-    # @ TODO - RelieF
     return pd.DataFrame(fs.fit_transform(data, target), columns=data.columns[fs.get_support(indices=True)])
 
 
@@ -825,24 +827,26 @@ def varyFeatureNumberReg(data, target, modelname, tsize):
 
 def getModelClassif(model):
     if model == 'dummy':
-        return DummyClassifier(random_state=0)
+        return DummyClassifier()
+    elif model == 'no-injury':
+        return DummyClassifier(strategy='most_frequent')
     elif model == 'tree':
-        return DecisionTreeClassifier(criterion='entropy', random_state=0)
+        return DecisionTreeClassifier(criterion='entropy')
     elif model == 'forest':
-        return RandomForestClassifier(n_estimators=150, random_state=0)
+        return RandomForestClassifier(n_estimators=150)
     elif model == 'kn':
         return KNeighborsClassifier(n_neighbors=10)
     elif model == 'svm':
-        return SVC(class_weight='balanced', random_state=0)
+        return SVC(class_weight='balanced')
     elif model == 'nb':
         return GaussianNB()
     elif model == 'mlp':
-        return MLPClassifier(random_state=0)
+        return MLPClassifier()
     elif model == 'ridge':
         return RidgeClassifierCV(class_weight='balanced')
 
 
-def varyFeatureNumberClassif(data, target, modelname, tsize):
+def varyFeatureNumberClassif(data, target, modelname, tsize, balanced=False, playercol=None, seasoncol=None):
     print('Model: ', modelname)
     test = {}
     for i in range(1, len(data.columns)+1):
@@ -851,17 +855,22 @@ def varyFeatureNumberClassif(data, target, modelname, tsize):
         selected = selectFeatures(data, target, i, type='classif')
 
         # data splitting
-        data_train, data_test, target_train, target_test = ttSplit(
-            selected, target, testsize=tsize
-        )
+        if balanced:
+            data_train, data_test, target_train, target_test = ttSplit(
+                selected, target, tsize,
+                balanced=True,
+                playercol=playercol,
+                seasoncol=seasoncol
+            )
+        else:
+            data_train, data_test, target_train, target_test = ttSplit(
+                selected, target, testsize=tsize
+            )
 
         # training
-        if modelname != 'no-injury':
-            clf = getModelClassif(modelname)
-            pred_target_test = clf.fit(
-                data_train, target_train).predict(data_test)
-        else:
-            pred_target_test = np.zeros_like(target_test)
+        clf = getModelClassif(modelname)
+        pred_target_test = clf.fit(
+            data_train, target_train).predict(data_test)
 
         # visualize observed vs predicted
         if debug:

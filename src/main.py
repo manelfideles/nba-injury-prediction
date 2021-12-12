@@ -17,7 +17,7 @@ reg = False
 classif = True
 debug = False
 info = False
-pca = True
+pca = False
 global_testsize = 0.15
 
 
@@ -94,16 +94,6 @@ if classif:
         print(f'Data shape after normalization: {data.shape}')
         print(f'Target shape: {target.shape}')
 
-    """
-    X_train, X_test, y_train, y_test = ttSplit(
-        data, target,
-        global_testsize,
-        balanced=True,
-        playercol=fvs['Player'],
-        seasoncol=fvs['Season']
-    )
-    """
-
     # Plot class imbalance and feature correlation
     imbalance = target.value_counts()
     if info:
@@ -146,14 +136,15 @@ if classif:
     data_pca_subset = data_pca[samples]
     target_subset = target[samples]
 
-    # [PCA] Random splitting, sfs, plotting
     if pca:
+        sfs_metrics_pca, sfs_metrics_pca_balanced = [], []
+
+        # [PCA] Random splitting
         X_train, X_test, y_train, y_test = ttSplit(
             data_pca_subset,
             target_subset,
             global_testsize
         )
-        sfs_metrics_pca = []
         print('Performing SFSelection w/ PCA...')
         for i in range(1, n_features):
             print(f'# of Features: {i}')
@@ -174,12 +165,8 @@ if classif:
                 ), 4)
             ]
 
-        _, ax = plt.subplots()
-        ax.plot(sfs_metrics_pca, 'o-')
-        plt.title('[PCA] ROC-AUC (w/ KN) after SFS vs # of features')
-        plt.show()
-
-        # [PCA] Balanced splitting, sfs, plotting
+        """ 
+        # [PCA] Balanced splitting
         X_train, X_test, y_train, y_test = ttSplit(
             data_pca_subset,
             target_subset,
@@ -188,7 +175,6 @@ if classif:
             playercol=fvs['Player'],
             seasoncol=fvs['Season']
         )
-        sfs_metrics_pca_balanced = []
         print('Performing SFSelection w/ PCA...')
         for i in range(1, n_features):
             print(f'# of Features: {i}')
@@ -208,20 +194,19 @@ if classif:
                     average='weighted'
                 ), 4)
             ]
-
+        """
         _, ax = plt.subplots()
-        ax.plot(sfs_metrics_pca_balanced, 'o-')
+        ax.plot(sfs_metrics_pca, 'o-')
         plt.title('[PCA] ROC-AUC (w/ KN) after SFS vs # of features')
         plt.show()
-
-    exit()
 
     # TODO - Feed feature selection output into models
     # Compare models based on the following metrics:
     # Confusion Matrix, Recall, Precision
     # Accuracy, Balanced Accuracy, F1
     # ROC AUC, Precision-Recall AUC
-    # while varying the selected features number
+    # while varying the selected features number.
+
     evms = []
     modelnames = [
         'no-injury', 'dummy', 'ridge',
@@ -229,7 +214,13 @@ if classif:
         'svm', 'nb', 'mlp'
     ]
     for mn in modelnames:
-        evms += [varyFeatureNumberClassif(data, target, mn, global_testsize)]
+        evms += [varyFeatureNumberClassif(
+            data, target, mn,
+            global_testsize,
+            balanced=True,
+            playercol=fvs['Player'],
+            seasoncol=fvs['Season']
+        )]
 
     # Plot evaluation metrics vs number
     # of selected features
