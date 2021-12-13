@@ -17,7 +17,7 @@ reg = False
 classif = True
 debug = False
 info = False
-pca = False
+pca = True
 global_testsize = 0.15
 
 
@@ -121,84 +121,82 @@ if classif:
         plotEvrPc(evratios, pcs)
 
     n_features = 44
-    _, data_pca = doPca(data, n_features)
+    pca_model, data_pca = doPca(data, n_features)
+
+    # Save most important features - returns 30 cols
+    mostimportantcols = savePCAFeatures(
+        pca_model, data.columns.tolist(), n_features)
+    data_pca = data[mostimportantcols]
 
     # Perform SFS with subset of PCA data
     # to save on time and memory.
     # Subset size is set at 20%.
     # Loop through increasing number of features
     # to measure performance of Sequential Forward Selection.
+
     samples = np.random.choice(
         data_pca.shape[0],
         size=math.floor(data_pca.shape[0] * 0.1),
         replace=False
     )
-    data_pca_subset = data_pca[samples]
-    target_subset = target[samples]
+
+    data_pca_subset = data.iloc[samples].reset_index(drop=True)
+    target_subset = target.iloc[samples].reset_index(drop=True)
+
+    if info:
+        print(data_pca_subset.shape)
+        print(target_subset.shape)
 
     if pca:
-        sfs_metrics_pca, sfs_metrics_pca_balanced = [], []
+        sfs_metrics_pca, sfs_metrics_pca_sfs = [], []
 
-        # [PCA] Random splitting
+        # Random splitting
         X_train, X_test, y_train, y_test = ttSplit(
             data_pca_subset,
             target_subset,
             global_testsize
         )
-        print('Performing SFSelection w/ PCA...')
-        for i in range(1, n_features):
+
+        print('Performing prediction w/ SFSelection + PCA...')
+        for i in range(1, data_pca.shape[1]):
             print(f'# of Features: {i}')
             clf = make_pipeline(
                 SequentialFeatureSelector(
-                    KNeighborsClassifier(n_neighbors=3, n_jobs=-1),
+                    KNeighborsClassifier(n_jobs=-1),
                     n_features_to_select=i
                 ),
                 KNeighborsClassifier(n_jobs=-1)
             ).fit(X_train, y_train)
+
+            # Measuring
+            sfs_metrics_pca_sfs += [
+                round(roc_auc_score(
+                    y_test,
+                    clf.predict(X_test),
+                    average='weighted'
+                ), 4)
+            ]
+
+        print('Performing prediction w/ PCA-only...')
+        for i in range(1, data_pca.shape[1]):
+            print(f'# of Features: {i}')
+            clf = KNeighborsClassifier(
+                n_jobs=-1).fit(X_train[:, :i+1], y_train)
 
             # Measuring
             sfs_metrics_pca += [
                 round(roc_auc_score(
                     y_test,
-                    clf.predict(X_test),
+                    clf.predict(X_test[:, :i+1]),
                     average='weighted'
                 ), 4)
             ]
 
-        """ 
-        # [PCA] Balanced splitting
-        X_train, X_test, y_train, y_test = ttSplit(
-            data_pca_subset,
-            target_subset,
-            global_testsize,
-            balanced=True,
-            playercol=fvs['Player'],
-            seasoncol=fvs['Season']
-        )
-        print('Performing SFSelection w/ PCA...')
-        for i in range(1, n_features):
-            print(f'# of Features: {i}')
-            clf = make_pipeline(
-                SequentialFeatureSelector(
-                    KNeighborsClassifier(n_neighbors=3, n_jobs=-1),
-                    n_features_to_select=i
-                ),
-                KNeighborsClassifier(n_jobs=-1)
-            ).fit(X_train, y_train)
-
-            # Measuring
-            sfs_metrics_pca_balanced += [
-                round(roc_auc_score(
-                    y_test,
-                    clf.predict(X_test),
-                    average='weighted'
-                ), 4)
-            ]
-        """
         _, ax = plt.subplots()
-        ax.plot(sfs_metrics_pca, 'o-')
-        plt.title('[PCA] ROC-AUC (w/ KN) after SFS vs # of features')
+        ax.plot(sfs_metrics_pca_sfs, 'o-', sfs_metrics_pca, 'x-')
+        plt.title('[KN] ROC-AUC - PCA+SFS vs PCA-Only')
         plt.show()
+    exit()
 
     # TODO - Feed feature selection output into models
     # Compare models based on the following metrics:

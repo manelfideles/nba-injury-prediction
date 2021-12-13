@@ -578,18 +578,18 @@ def plotEvrPc(evratios, pc):
     plt.show()
 
 
-def savePCAFeatures(data, n_components=42):
-    model = PCA(n_components=n_components).fit(data)
-    _ = model.transform(data)
-    n_pcs = model.components_.shape[0]
+def savePCAFeatures(model, cols, n_components):
+    """
+    Stores the 'n_components' features
+    with the most EVR.
+    """
     most_important_pcs = [
-        np.abs(model.components_[i]).argmax() for i in range(n_pcs)
+        np.abs(model.components_[i]).argmax() for i in range(n_components)
     ]
-    initial_feature_names = data.columns.tolist()
     most_important_names = [
-        initial_feature_names[most_important_pcs[i]] for i in range(n_pcs)
+        cols[most_important_pcs[i]] for i in range(n_components)
     ]
-    return pd.DataFrame({'PC{}'.format(i): most_important_names[i] for i in range(n_pcs)}.items())
+    return list(set([most_important_names[i] for i in range(n_components)]))
 
 
 def getStatisticalMetrics(df):
