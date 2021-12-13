@@ -125,7 +125,10 @@ if classif:
 
     # Save most important features - returns 30 cols
     mostimportantcols = savePCAFeatures(
-        pca_model, data.columns.tolist(), n_features)
+        pca_model,
+        data.columns.tolist(),
+        n_features
+    )
     data_pca = data[mostimportantcols]
 
     # Perform SFS with subset of PCA data
@@ -140,7 +143,7 @@ if classif:
         replace=False
     )
 
-    data_pca_subset = data.iloc[samples].reset_index(drop=True)
+    data_pca_subset = data_pca.iloc[samples].reset_index(drop=True)
     target_subset = target.iloc[samples].reset_index(drop=True)
 
     if info:
@@ -181,13 +184,13 @@ if classif:
         for i in range(1, data_pca.shape[1]):
             print(f'# of Features: {i}')
             clf = KNeighborsClassifier(
-                n_jobs=-1).fit(X_train[:, :i+1], y_train)
+                n_jobs=-1).fit(X_train, y_train)
 
             # Measuring
             sfs_metrics_pca += [
                 round(roc_auc_score(
                     y_test,
-                    clf.predict(X_test[:, :i+1]),
+                    clf.predict(X_test),
                     average='weighted'
                 ), 4)
             ]
@@ -196,6 +199,7 @@ if classif:
         ax.plot(sfs_metrics_pca_sfs, 'o-', sfs_metrics_pca, 'x-')
         plt.title('[KN] ROC-AUC - PCA+SFS vs PCA-Only')
         plt.show()
+
     exit()
 
     # TODO - Feed feature selection output into models
@@ -213,7 +217,7 @@ if classif:
     ]
     for mn in modelnames:
         evms += [varyFeatureNumberClassif(
-            data, target, mn,
+            data_pca, target, mn,
             global_testsize,
             balanced=True,
             playercol=fvs['Player'],
